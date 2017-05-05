@@ -30,7 +30,7 @@ public class ChannelsMessageHandler extends ChannelsMessageHandlerBase {
     protected void onNewSubscriber(NewBot newBot) throws Exception {
         Channel channel = getChannel(newBot.id);
         User origin = newBot.origin;
-        Logger.info(String.format("onNewSubscriber: channel: %s origin: %s '%s' locale: %s",
+        Logger.info(String.format("onNewSubscriber: channel: %s, origin: %s, '%s' locale: %s",
                 channel.name,
                 origin.id,
                 origin.name,

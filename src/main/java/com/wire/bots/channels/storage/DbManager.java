@@ -313,11 +313,11 @@ public class DbManager {
         }
     }
 
-    public Channel getChannel(String name) throws SQLException {
+    public Channel getChannel(String channelName) throws SQLException {
         Channel ret = new Channel();
         try (Connection conn = getConnection()) {
             PreparedStatement stm = conn.prepareStatement("SELECT * FROM Channel WHERE Name = ?");
-            stm.setString(1, name);
+            stm.setString(1, channelName);
             ResultSet rs = stm.executeQuery();
             while (rs.next()) {
                 ret.name = rs.getString("Name");

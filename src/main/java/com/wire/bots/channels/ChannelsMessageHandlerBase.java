@@ -118,7 +118,7 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
         try {
             String botId = client.getId();
             Channel channel = getChannel(botId);
-            if (channel.admin != null && channel.admin.equals(botId)) {
+            if (botId.equals(channel.admin)) {
                 String msg = String.format("This is Admin Conversation for the Channel: `%s`." +
                                 "\nYou should rename this conv to something like: `Admin %s`." +
                                 "\nUse this conversation to broadcast. Don't leave or delete this conv." +
