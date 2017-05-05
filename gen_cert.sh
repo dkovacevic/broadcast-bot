@@ -7,7 +7,7 @@ CSR_LOCALITY="Berlin"
 CSR_ORGANISATION="My Company GmbH"
 CSR_COMMON="company.com"
 CSR_NAME="myservercert"
-KEYSTORE_PASSWORD="W0rd5DontCome3asy2Me"
+KEYSTORE_PASSWORD="your_secret"
 KEYSTORE_FILE="keystore.jks"
 
 mkdir -p $CERTS_DIR

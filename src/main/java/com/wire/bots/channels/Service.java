@@ -16,31 +16,43 @@
 // along with this program. If not, see http://www.gnu.org/licenses/.
 //
 
-package com.wire.bots.broadcast;
+package com.wire.bots.channels;
 
-import com.wire.bots.broadcast.model.Config;
-import com.wire.bots.broadcast.resource.BroadcastResource;
-import com.wire.bots.broadcast.tasks.ListBroadcastsTask;
-import com.wire.bots.broadcast.tasks.ListMessagesTask;
+import com.wire.bots.channels.model.Config;
+import com.wire.bots.channels.resource.AdminResource;
+import com.wire.bots.channels.resource.ChannelBotsResource;
+import com.wire.bots.channels.resource.ChannelMessageResource;
+import com.wire.bots.channels.storage.DbManager;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.Server;
 import io.dropwizard.setup.Environment;
 
 public class Service extends Server<Config> {
+    public static DbManager dbManager;
+
     public static void main(String[] args) throws Exception {
         new Service().run(args);
     }
 
     @Override
     protected MessageHandlerBase createHandler(Config config, Environment env) {
-        return new BroadcastMessageHandler(repo, config);
+        return new ChannelsMessageHandler(repo, config);
     }
 
     @Override
     protected void onRun(Config config, Environment env) {
-        addResource(new BroadcastResource(repo, config), env);
+        addResource(new AdminResource(config), env);
 
-        addTask(new ListMessagesTask(config), env);
-        addTask(new ListBroadcastsTask(config), env);
+        dbManager = new DbManager(config.getDatabase());
+    }
+
+    @Override
+    protected void botResource(Config config, Environment env, MessageHandlerBase handler) {
+        addResource(new ChannelBotsResource(handler, repo, config), env);
+    }
+
+    @Override
+    protected void messageResource(Config config, Environment env, MessageHandlerBase handler) {
+        addResource(new ChannelMessageResource(handler, repo, config), env);
     }
 }

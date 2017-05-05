@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NAME="broadcast"
+NAME="channel"
 
 git pull
 (cd ..; mvn -Plinux package)

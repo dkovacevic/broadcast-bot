@@ -15,10 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see http://www.gnu.org/licenses/.
 //
-package com.wire.bots.broadcast.storage;
+package com.wire.bots.channels.storage;
 
-import com.wire.bots.broadcast.model.Broadcast;
-import com.wire.bots.broadcast.model.Message;
+import com.wire.bots.channels.model.Broadcast;
+import com.wire.bots.channels.model.Channel;
+import com.wire.bots.channels.model.Message;
 import com.wire.bots.sdk.Logger;
 import com.wire.bots.sdk.server.model.NewBot;
 
@@ -90,6 +91,18 @@ public class DbManager {
             if (update > 0)
                 Logger.info("CREATED TABLE User");
 
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS Channel " +
+                            "(Name STRING PRIMARY KEY NOT NULL," +
+                            " Welcome STRING," +
+                            " Admin STRING," +
+                            " Origin STRING," +
+                            " Token STRING NOT NULL)"
+            );
+
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS Bot2Channel " +
+                            "(BotId STRING PRIMARY KEY," +
+                            " Channel STRING)"
+            );
         } catch (Exception e) {
             e.printStackTrace();
             Logger.error(e.getLocalizedMessage());
@@ -246,6 +259,93 @@ public class DbManager {
             PreparedStatement stm = connection.prepareStatement(cmd);
             stm.setString(1, messageId);
             return stm.executeUpdate();
+        }
+    }
+
+    public void insertBot2Channel(String channelName, String botId) throws SQLException {
+        try (Connection connection = getConnection()) {
+            String cmd = "INSERT INTO Bot2Channel " +
+                    "(BotId, Channel) " +
+                    "VALUES(?, ?)";
+            PreparedStatement stm = connection.prepareStatement(cmd);
+            stm.setString(1, botId);
+            stm.setString(2, channelName);
+            stm.executeUpdate();
+        }
+    }
+
+    public ArrayList<String> getSubscribers(String channelName) throws SQLException {
+        ArrayList<String> ret = new ArrayList<>();
+        try (Connection conn = getConnection()) {
+            PreparedStatement stm = conn.prepareStatement("SELECT BotId FROM Bot2Channel WHERE Channel = ?");
+            stm.setString(1, channelName);
+            ResultSet rs = stm.executeQuery();
+            while (rs.next()) {
+                String botId = rs.getString("BotId");
+                ret.add(botId);
+            }
+            return ret;
+        }
+    }
+
+    public void updateChannel(String channelName, String token, String origin) throws SQLException {
+        try (Connection connection = getConnection()) {
+            String cmd = "REPLACE INTO Channel " +
+                    "(Name, Token, Origin) " +
+                    "VALUES(?, ?, ?)";
+            PreparedStatement stm = connection.prepareStatement(cmd);
+            stm.setString(1, channelName);
+            stm.setString(2, token);
+            stm.setString(3, origin);
+            stm.executeUpdate();
+        }
+    }
+
+    public void setAdminChannel(String channelName, String admin) throws SQLException {
+        try (Connection connection = getConnection()) {
+            String cmd = "UPDATE Channel " +
+                    "SET Admin = ? " +
+                    "WHERE Name = ?";
+            PreparedStatement stm = connection.prepareStatement(cmd);
+            stm.setString(1, admin);
+            stm.setString(2, channelName);
+            stm.executeUpdate();
+        }
+    }
+
+    public Channel getChannel(String channelName) throws SQLException {
+        Channel ret = new Channel();
+        try (Connection conn = getConnection()) {
+            PreparedStatement stm = conn.prepareStatement("SELECT * FROM Channel WHERE Name = ?");
+            stm.setString(1, channelName);
+            ResultSet rs = stm.executeQuery();
+            while (rs.next()) {
+                ret.name = rs.getString("Name");
+                ret.token = rs.getString("Token");
+                ret.admin = rs.getString("Admin");
+                ret.origin = rs.getString("Origin");
+            }
+        }
+        return ret;
+    }
+
+    public String getChannelName(String botId) throws SQLException {
+        try (Connection conn = getConnection()) {
+            PreparedStatement stm = conn.prepareStatement("SELECT Channel FROM Bot2Channel WHERE BotId = ?");
+            stm.setString(1, botId);
+            ResultSet rs = stm.executeQuery();
+            while (rs.next()) {
+                return rs.getString("Channel");
+            }
+            return null;
+        }
+    }
+
+    public boolean removeSubscriber(String botId) throws SQLException {
+        try (Connection conn = getConnection()) {
+            PreparedStatement stm = conn.prepareStatement("DELETE FROM Bot2Channel WHERE BotId = ?");
+            stm.setString(1, botId);
+            return stm.execute();
         }
     }
 }

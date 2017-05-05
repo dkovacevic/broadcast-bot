@@ -2,19 +2,19 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: broadcast
+  name: channel
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        name: broadcast
+        name: channel
     spec:
       restartPolicy: Always
 
       containers:
-        - name: broadcast
-          image: eu.gcr.io/wire-bot/broadcast:latest
+        - name: channel
+          image: eu.gcr.io/wire-bot/channel:latest
 
           resources:
             requests:
@@ -26,65 +26,62 @@ spec:
             - name: AUTH_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: broadcast-knows
+                  name: channel-knows
                   key: token
 
             - name: APP_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: broadcast-knows
+                  name: channel-knows
                   key: app_secret
 
             - name: KEYSTORE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: broadcast-knows
+                  name: channel-knows
                   key: keystore_password
 
-            - name: ADMIN_CONV
-              valueFrom:
-                configMapKeyRef:
-                  name: broadcast-config
-                  key: admin
-
           volumeMounts:
-            - name: broadcast-disk
-              mountPath: /var/lib/broadcast/crypto
+            - name: channel-disk
+              mountPath: /var/lib/channel/crypto
 
-            - name: broadcast-config
-              mountPath: /etc/broadcast
+            - name: channel-config
+              mountPath: /etc/channel
 
           command:
             - "/usr/bin/java"
             - "-Ddw.server.applicationConnectors[1].keyStorePassword=$(KEYSTORE_PASSWORD)"
             - "-Ddw.auth=$(AUTH_TOKEN)"
-            - "-Ddw.admin=$(ADMIN_CONV)"
             - "-Ddw.appSecret=$(APP_SECRET)"
             - "-jar"
-            - "broadcast.jar"
+            - "channel.jar"
             - "server"
-            - "/etc/broadcast/broadcast.yaml"
+            - "/etc/channel/channel.yaml"
 
       volumes:
-        - name: broadcast-disk
+        - name: channel-disk
           gcePersistentDisk:
-            pdName: broadcast-disk
+            pdName: channel-disk
             fsType: ext4
 
-        - name: broadcast-config
+        - name: channel-config
           configMap:
-            name: broadcast-config
+            name: channel-config
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: broadcast
+  name: channel
 spec:
   selector:
-    name: broadcast
+    name: channel
   type: LoadBalancer
   ports:
     - name: https
       port: 443
+      protocol: TCP
+
+    - name: http
+      port: 8080
       protocol: TCP

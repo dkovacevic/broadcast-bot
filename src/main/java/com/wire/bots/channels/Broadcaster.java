@@ -16,11 +16,10 @@
 // along with this program. If not, see http://www.gnu.org/licenses/.
 //
 
-package com.wire.bots.broadcast;
+package com.wire.bots.channels;
 
-import com.wire.bots.broadcast.model.Broadcast;
-import com.wire.bots.broadcast.model.Config;
-import com.wire.bots.broadcast.storage.DbManager;
+import com.wire.bots.channels.model.Broadcast;
+import com.wire.bots.channels.model.Channel;
 import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.Logger;
 import com.wire.bots.sdk.WireClient;
@@ -34,38 +33,32 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 
-import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
-public class Executor {
+public class Broadcaster {
     private final ClientRepo repo;
     private final ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(20);
-    private final DbManager dbManager;
-    private final Config config;
 
-    public Executor(ClientRepo repo, Config config) {
+    public Broadcaster(ClientRepo repo) {
         this.repo = repo;
-        this.dbManager = new DbManager(config.getDatabase());
-        this.config = config;
     }
 
-    public void broadcast(Picture picture) throws Exception {
-        File[] botDirs = getCryptoDirs();
+    public void broadcast(String channel, TextMessage msg) throws Exception {
+        String text = msg.getText();
+        String messageId = msg.getMessageId();
 
-        WireClient wireClient = repo.getWireClient(botDirs[0].getName());
-        AssetKey assetKey = wireClient.uploadAsset(picture);
-        picture.setAssetKey(assetKey.key);
-        picture.setAssetToken(assetKey.token);
-
-        broadcastPicture(picture);
+        if (text.startsWith("http")) {
+            broadcastUrl(channel, text);
+        } else {
+            broadcastText(channel, messageId, text);
+        }
     }
 
-    public void broadcast(ImageMessage msg, byte[] imgData) throws Exception {
+    public void broadcast(String channel, ImageMessage msg, byte[] imgData) throws Exception {
         Picture picture = new Picture(imgData, msg.getMimeType());
         picture.setSize((int) msg.getSize());
         picture.setWidth(msg.getWidth());
@@ -76,31 +69,18 @@ public class Executor {
         picture.setSha256(msg.getSha256());
         picture.setMessageId(msg.getMessageId());
 
-        broadcastPicture(picture);
+        broadcastPicture(channel, picture);
     }
 
-    public void broadcast(TextMessage msg) throws Exception {
-        String text = msg.getText();
-        String messageId = msg.getMessageId();
-
-        if (text.startsWith("http")) {
-            broadcastUrl(text);
-        } else {
-            broadcastText(messageId, text);
-        }
-    }
-
-    public void broadcastUrl(final String url) throws Exception {
-        File[] botDirs = getCryptoDirs();
-        WireClient wireClient = repo.getWireClient(botDirs[0].getName());
+    public void broadcastUrl(String channelName, final String url) throws Exception {
+        WireClient wireClient = getAdminClient(channelName);
 
         final String title = extractPageTitle(url);
         final Picture preview = uploadPreview(wireClient, extractPagePreview(url));
 
         saveBroadcast(url, title, preview);
 
-        for (File botDir : botDirs) {
-            final String botId = botDir.getName();
+        for (final String botId : getSubscribers(channelName)) {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -110,17 +90,14 @@ public class Executor {
         }
     }
 
-    public void broadcastText(final String messageId, final String text) throws SQLException {
-        File[] botDirs = getCryptoDirs();
-
+    public void broadcastText(String channel, final String messageId, final String text) throws SQLException {
         Broadcast b = new Broadcast();
         b.setMessageId(messageId);
         b.setText(text);
 
-        dbManager.insertBroadcast(b);
+        Service.dbManager.insertBroadcast(b);
 
-        for (File botDir : botDirs) {
-            final String botId = botDir.getName();
+        for (final String botId : getSubscribers(channel)) {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -130,11 +107,10 @@ public class Executor {
         }
     }
 
-    public void revokeBroadcast(final String messageId) throws SQLException {
-        dbManager.deleteBroadcast(messageId);
+    public void revokeBroadcast(String channel, final String messageId) throws SQLException {
+        Service.dbManager.deleteBroadcast(messageId);
 
-        for (File botDir : getCryptoDirs()) {
-            final String botId = botDir.getName();
+        for (final String botId : getSubscribers(channel)) {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -144,27 +120,23 @@ public class Executor {
         }
     }
 
-    public void forwardFeedback(TextMessage msg) throws Exception {
-        if (!hasAdminConv()) return;
-
-        WireClient feedbackClient = repo.getWireClient(config.getAdmin());
+    public void forwardFeedback(String channelName, TextMessage msg) throws Exception {
+        WireClient adminClient = getAdminClient(channelName);
         ArrayList<String> ids = new ArrayList<>();
         ids.add(msg.getUserId());
-        for (User user : feedbackClient.getUsers(ids)) {
+        for (User user : adminClient.getUsers(ids)) {
             String feedback = String.format("**%s** wrote: _%s_", user.name, msg.getText());
-            feedbackClient.sendText(feedback);
+            adminClient.sendText(feedback);
         }
     }
 
-    public void forwardFeedback(ImageMessage msg) throws Exception {
-        if (!hasAdminConv()) return;
-
-        WireClient feedbackClient = repo.getWireClient(config.getAdmin());
+    public void forwardFeedback(String channelName, ImageMessage msg) throws Exception {
+        WireClient adminClient = getAdminClient(channelName);
         ArrayList<String> ids = new ArrayList<>();
         ids.add(msg.getUserId());
-        for (User user : feedbackClient.getUsers(ids)) {
+        for (User user : adminClient.getUsers(ids)) {
             String feedback = String.format("**%s** sent:", user.name);
-            feedbackClient.sendText(feedback);
+            adminClient.sendText(feedback);
 
             Picture picture = new Picture();
             picture.setMimeType(msg.getMimeType());
@@ -176,38 +148,33 @@ public class Executor {
             picture.setOtrKey(msg.getOtrKey());
             picture.setSha256(msg.getSha256());
 
-            feedbackClient.sendPicture(picture);
+            adminClient.sendPicture(picture);
         }
     }
 
-    public void sendOnMemberFeedback(String format, ArrayList<String> userIds) {
-        if (!hasAdminConv()) return;
-
+    public void sendOnMemberFeedback(String channelName, String format, ArrayList<String> userIds) {
         try {
-            WireClient feedbackClient = repo.getWireClient(config.getAdmin());
-            for (User user : feedbackClient.getUsers(userIds)) {
+            WireClient adminClient = getAdminClient(channelName);
+            for (User user : adminClient.getUsers(userIds)) {
                 String feedback = String.format(format, user.name);
-                feedbackClient.sendText(feedback);
+                adminClient.sendText(feedback);
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
         }
     }
 
-    public void newUserFeedback(String name) throws Exception {
-        if (!hasAdminConv()) return;
+    public void newUserFeedback(String channelName, String userName) throws Exception {
+        WireClient adminClient = getAdminClient(channelName);
 
-        WireClient feedbackClient = repo.getWireClient(config.getAdmin());
-        String feedback = String.format("**%s** just joined", name);
-        feedbackClient.sendText(feedback);
+        String feedback = String.format("**%s** just joined", userName);
+        adminClient.sendText(feedback);
     }
 
-    private void broadcastPicture(final Picture picture) {
+    private void broadcastPicture(String channel, final Picture picture) throws SQLException {
         saveBroadcast(null, null, picture);
 
-        File[] botDirs = getCryptoDirs();
-        for (File botDir : botDirs) {
-            final String botId = botDir.getName();
+        for (final String botId : getSubscribers(channel)) {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -232,7 +199,7 @@ public class Executor {
             broadcast.setTitle(title);
             broadcast.setMessageId(picture.getMessageId());
 
-            dbManager.insertBroadcast(broadcast);
+            Service.dbManager.insertBroadcast(broadcast);
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
         }
@@ -305,26 +272,23 @@ public class Executor {
         }
     }
 
-    private File[] getCryptoDirs() {
-        File dir = new File(config.cryptoDir);
-        return dir.listFiles(new FileFilter() {
-            @Override
-            public boolean accept(File file) {
-                String botId = file.getName();
-                // Don't broadcast to Admin Conv.
-                if (botId.equals(config.getAdmin()))
-                    return false;
+    private WireClient getAdminClient(String channelName) throws SQLException {
+        Channel channel = Service.dbManager.getChannel(channelName);
+        return repo.getWireClient(channel.admin);
+    }
 
-                return repo.getWireClient(botId) != null;
+    private ArrayList<String> getSubscribers(String channelName) {
+        ArrayList<String> ret = new ArrayList<>();
+        try {
+            Channel channel = Service.dbManager.getChannel(channelName);
+            for (String botId : Service.dbManager.getSubscribers(channelName)) {
+                if (!botId.equals(channel.admin))
+                    ret.add(botId);
             }
-        });
-    }
-
-    private boolean hasAdminConv() {
-        return config.getAdmin() != null && !config.getAdmin().isEmpty();
-    }
-
-    public DbManager getDbManager() {
-        return dbManager;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            Logger.error(e.getMessage());
+        }
+        return ret;
     }
 }

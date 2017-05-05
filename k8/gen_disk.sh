@@ -1,8 +1,8 @@
 #!/bin/bash
 
-NAME="broadcast-disk"
+NAME="channel-disk"
 
 gcloud compute disks create $NAME \
     --zone europe-west1-c \
-    --size 1GB \
+    --size 10GB \
     --type pd-ssd
