@@ -201,19 +201,33 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
     public void onEvent(WireClient client, String userId, Messages.GenericMessage msg) {
         String botId = client.getId();
         if (msg.hasReaction()) {
-            Logger.info(String.format("onEvent (Like) bot: %s, user: %s", botId, userId));
+            onMemberFeedbackLike(client, userId);
         }
 
         if (msg.hasDeleted()) {
-            Messages.MessageDelete deleted = msg.getDeleted();
-            try {
-                Channel channel = getChannel(botId);
-                if (botId.equals(channel.admin)) {
-                    broadcaster.revokeBroadcast(channel.name, deleted.getMessageId());
-                }
-            } catch (SQLException e) {
-                Logger.error("Error revoking broadcast. " + e.getLocalizedMessage());
+            onMemberFeedbackDel(botId, msg.getDeleted().getMessageId());
+        }
+    }
+
+    private void onMemberFeedbackDel(String botId, String messageId) {
+        try {
+            Channel channel = getChannel(botId);
+            if (botId.equals(channel.admin)) {
+                broadcaster.revokeBroadcast(channel.name, messageId);
             }
+        } catch (SQLException e) {
+            Logger.error("Error revoking broadcast. " + e.getMessage());
+        }
+    }
+
+    private void onMemberFeedbackLike(WireClient client, String userId) {
+        try {
+            Channel channel = getChannel(client.getId());
+            ArrayList<String> userIds = new ArrayList<>();
+            userIds.add(userId);
+            broadcaster.sendOnMemberFeedback(channel.name, "**%s** liked", userIds);
+        } catch (SQLException e) {
+            Logger.error("Error onEvent (Like). " + e.getMessage());
         }
     }
 
