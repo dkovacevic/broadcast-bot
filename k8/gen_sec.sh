@@ -1,8 +1,8 @@
 #!/bin/bash
 
-SECRET_NAME="broadcast-knows"
+SECRET_NAME="channel-knows"
 AUTH_TOKEN="your_token"
-KEYSTORE_PASSWORD="your_password"
+KEYSTORE_PASSWORD="your_secret"
 APP_SECRET="your_secret"
 
 kubectl delete secret $SECRET_NAME
