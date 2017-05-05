@@ -67,12 +67,14 @@ public class ChannelBotsResource {
             isAdmin = true;
         }
 
-        if (!isAdmin && !handler.onNewBot(newBot))
-            return Response.
-                    status(409).
-                    build();
+        if (!isAdmin) {
+            Service.dbManager.insertBot2Channel(channelName, newBot.id);
 
-        Service.dbManager.insertBot2Channel(channelName, newBot.id);
+            if (!handler.onNewBot(newBot))
+                return Response.
+                        status(409).
+                        build();
+        }
 
         String path = String.format("%s/%s", conf.getCryptoDir(), newBot.id);
 

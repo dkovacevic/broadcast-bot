@@ -29,7 +29,6 @@ import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.models.ImageMessage;
 import com.wire.bots.sdk.models.TextMessage;
 import com.wire.bots.sdk.server.model.NewBot;
-import com.wire.bots.sdk.server.model.User;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -56,18 +55,13 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
 
     abstract protected void onNewSubscriber(NewBot newBot) throws Exception;
 
-    abstract protected void onNewFeedback(TextMessage msg) throws Exception;
+    abstract protected void onNewFeedback(String botId, TextMessage msg) throws Exception;
 
-    abstract protected void onNewFeedback(ImageMessage msg) throws Exception;
+    abstract protected void onNewFeedback(String botId, ImageMessage msg) throws Exception;
 
     @Override
     public boolean onNewBot(NewBot newBot) {
         try {
-            User origin = newBot.origin;
-            if (!isWhiteListed(origin.id)) {
-                Logger.info(String.format("Rejecting user: %s/%s", origin.id, origin.name));
-                return false;
-            }
             saveNewBot(newBot);
 
             onNewSubscriber(newBot);
@@ -88,10 +82,9 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
             } else {
                 saveMessage(botId, msg);
 
-                if (config.isLike())
-                    likeMessage(client, msg.getMessageId());
+                likeMessage(client, msg.getMessageId());
 
-                onNewFeedback(msg);
+                onNewFeedback(botId, msg);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -110,10 +103,9 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
             } else {
                 saveMessage(botId, msg);
 
-                if (config.isLike())
-                    likeMessage(client, msg.getMessageId());
+                likeMessage(client, msg.getMessageId());
 
-                onNewFeedback(msg);
+                onNewFeedback(botId, msg);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -185,32 +177,44 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
 
     @Override
     public void onMemberJoin(WireClient client, ArrayList<String> userIds) {
-        //broadcaster.sendOnMemberFeedback("**%s** joined", userIds);
+        try {
+            Channel channel = getChannel(client.getId());
+            broadcaster.sendOnMemberFeedback(channel.name, "**%s** joined", userIds);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            Logger.error(e.getMessage());
+        }
     }
 
     @Override
-    public void onMemberLeave(WireClient ignored, ArrayList<String> userIds) {
-        //broadcaster.sendOnMemberFeedback("**%s** left", userIds);
+    public void onMemberLeave(WireClient client, ArrayList<String> userIds) {
+        try {
+            Channel channel = getChannel(client.getId());
+            broadcaster.sendOnMemberFeedback(channel.name, "**%s** left", userIds);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            Logger.error(e.getMessage());
+        }
     }
 
     @Override
     public void onEvent(WireClient client, String userId, Messages.GenericMessage msg) {
+        String botId = client.getId();
         if (msg.hasReaction()) {
-            Logger.info(String.format("onEvent (Like) bot: %s, user: %s", client.getId(), userId));
+            Logger.info(String.format("onEvent (Like) bot: %s, user: %s", botId, userId));
         }
 
-        /*
         if (msg.hasDeleted()) {
-            if (isAdminBot(client.getId())) {
-                Messages.MessageDelete deleted = msg.getDeleted();
-                try {
-                    broadcaster.revokeBroadcast(deleted.getMessageId());
-                } catch (SQLException e) {
-                    Logger.error("Error revoking broadcast. " + e.getLocalizedMessage());
+            Messages.MessageDelete deleted = msg.getDeleted();
+            try {
+                Channel channel = getChannel(botId);
+                if (botId.equals(channel.admin)) {
+                    broadcaster.revokeBroadcast(channel.name, deleted.getMessageId());
                 }
+            } catch (SQLException e) {
+                Logger.error("Error revoking broadcast. " + e.getLocalizedMessage());
             }
         }
-        */
     }
 
     private void likeMessage(final WireClient client, final String messageId) {
@@ -270,7 +274,7 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
     private boolean isAdminBot(String botId) {
         try {
             Channel channel = getChannel(botId);
-            return channel.admin != null && channel.admin.equals(botId);
+            return botId.equals(channel.admin);
         } catch (SQLException e) {
             Logger.error(e.getMessage());
             return false;
@@ -280,12 +284,5 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
     protected Channel getChannel(String botId) throws SQLException {
         String channelName = Service.dbManager.getChannelName(botId);
         return Service.dbManager.getChannel(channelName);
-    }
-
-    private boolean isWhiteListed(String userId) {
-        return config.getWhitelist() == null
-                || config.getWhitelist().isEmpty()
-                || config.getWhitelist().contains(userId);
-
     }
 }

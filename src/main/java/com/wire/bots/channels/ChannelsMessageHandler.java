@@ -36,16 +36,18 @@ public class ChannelsMessageHandler extends ChannelsMessageHandlerBase {
                 origin.name,
                 newBot.locale));
 
-        //broadcaster.newUserFeedback(origin.name);
+        broadcaster.newUserFeedback(channel.name, origin.name);
     }
 
     @Override
-    protected void onNewFeedback(TextMessage msg) throws Exception {
-        //broadcaster.forwardFeedback(msg);
+    protected void onNewFeedback(String botId, TextMessage msg) throws Exception {
+        Channel channel = getChannel(botId);
+        broadcaster.forwardFeedback(channel.name, msg);
     }
 
     @Override
-    protected void onNewFeedback(ImageMessage msg) throws Exception {
-        //broadcaster.forwardFeedback(msg);
+    protected void onNewFeedback(String botId, ImageMessage msg) throws Exception {
+        Channel channel = getChannel(botId);
+        broadcaster.forwardFeedback(channel.name, msg);
     }
 }

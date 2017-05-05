@@ -27,6 +27,7 @@ import com.wire.bots.sdk.assets.Picture;
 import com.wire.bots.sdk.models.AssetKey;
 import com.wire.bots.sdk.models.ImageMessage;
 import com.wire.bots.sdk.models.TextMessage;
+import com.wire.bots.sdk.server.model.User;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -34,6 +35,7 @@ import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
@@ -71,8 +73,7 @@ public class Broadcaster {
     }
 
     public void broadcastUrl(String channelName, final String url) throws Exception {
-        Channel channel = Service.dbManager.getChannel(channelName);
-        WireClient wireClient = repo.getWireClient(channel.admin);
+        WireClient wireClient = getAdminClient(channelName);
 
         final String title = extractPageTitle(url);
         final Picture preview = uploadPreview(wireClient, extractPagePreview(url));
@@ -119,26 +120,23 @@ public class Broadcaster {
         }
     }
 
-    /*
-    public void forwardFeedback(TextMessage msg) throws Exception {
-        WireClient feedbackClient = repo.getWireClient(config.getAdmin());
+    public void forwardFeedback(String channelName, TextMessage msg) throws Exception {
+        WireClient adminClient = getAdminClient(channelName);
         ArrayList<String> ids = new ArrayList<>();
         ids.add(msg.getUserId());
-        for (User user : feedbackClient.getUsers(ids)) {
+        for (User user : adminClient.getUsers(ids)) {
             String feedback = String.format("**%s** wrote: _%s_", user.name, msg.getText());
-            feedbackClient.sendText(feedback);
+            adminClient.sendText(feedback);
         }
     }
-    */
 
-    /*
-    public void forwardFeedback(ImageMessage msg) throws Exception {
-        WireClient feedbackClient = repo.getWireClient(config.getAdmin());
+    public void forwardFeedback(String channelName, ImageMessage msg) throws Exception {
+        WireClient adminClient = getAdminClient(channelName);
         ArrayList<String> ids = new ArrayList<>();
         ids.add(msg.getUserId());
-        for (User user : feedbackClient.getUsers(ids)) {
+        for (User user : adminClient.getUsers(ids)) {
             String feedback = String.format("**%s** sent:", user.name);
-            feedbackClient.sendText(feedback);
+            adminClient.sendText(feedback);
 
             Picture picture = new Picture();
             picture.setMimeType(msg.getMimeType());
@@ -150,32 +148,28 @@ public class Broadcaster {
             picture.setOtrKey(msg.getOtrKey());
             picture.setSha256(msg.getSha256());
 
-            feedbackClient.sendPicture(picture);
+            adminClient.sendPicture(picture);
         }
     }
-    */
 
-    /*
-    public void sendOnMemberFeedback(String format, ArrayList<String> userIds) {
+    public void sendOnMemberFeedback(String channelName, String format, ArrayList<String> userIds) {
         try {
-            WireClient feedbackClient = repo.getWireClient(config.getAdmin());
-            for (User user : feedbackClient.getUsers(userIds)) {
+            WireClient adminClient = getAdminClient(channelName);
+            for (User user : adminClient.getUsers(userIds)) {
                 String feedback = String.format(format, user.name);
-                feedbackClient.sendText(feedback);
+                adminClient.sendText(feedback);
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
         }
     }
-    */
 
-    /*
-    public void newUserFeedback(String name) throws Exception {
-        WireClient feedbackClient = repo.getWireClient(config.getAdmin());
-        String feedback = String.format("**%s** just joined", name);
-        feedbackClient.sendText(feedback);
+    public void newUserFeedback(String channelName, String userName) throws Exception {
+        WireClient adminClient = getAdminClient(channelName);
+
+        String feedback = String.format("**%s** just joined", userName);
+        adminClient.sendText(feedback);
     }
-    */
 
     private void broadcastPicture(String channel, final Picture picture) throws SQLException {
         saveBroadcast(null, null, picture);
@@ -278,4 +272,8 @@ public class Broadcaster {
         }
     }
 
+    private WireClient getAdminClient(String channelName) throws SQLException {
+        Channel channel = Service.dbManager.getChannel(channelName);
+        return repo.getWireClient(channel.admin);
+    }
 }

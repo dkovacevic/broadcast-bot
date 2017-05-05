@@ -15,10 +15,5 @@ server:
   requestLog:
     appenders: []
 
-whitelist: []
 cryptoDir: '/var/lib/channel/crypto'              # path to dir where to story crypto box files
 database: '/var/lib/channel/crypto/channel.db'  # path to db file
-fallback: 60                   # Number of minutes to fallback when fetching channels for new subscribers
-like: false                    # Like every message sent by subscriber
-expiration: 0                  # minutes
-onNewSubscriberLabel: "[botId]\nThis is channel"
