@@ -15,14 +15,12 @@ public class ChannelsMessageHandler extends ChannelsMessageHandlerBase {
     }
 
     @Override
-    protected void onNewBroadcast(String botId, TextMessage msg) throws Exception {
-        Channel channel = getChannel(botId);
+    protected void broadcast(Channel channel, TextMessage msg) throws Exception {
         broadcaster.broadcast(channel.name, msg);
     }
 
     @Override
-    protected void onNewBroadcast(String botId, ImageMessage msg, byte[] bytes) throws Exception {
-        Channel channel = getChannel(botId);
+    protected void broadcast(Channel channel, ImageMessage msg, byte[] bytes) throws Exception {
         broadcaster.broadcast(channel.name, msg, bytes);
     }
 
@@ -36,18 +34,17 @@ public class ChannelsMessageHandler extends ChannelsMessageHandlerBase {
                 origin.name,
                 newBot.locale));
 
-        broadcaster.newUserFeedback(channel.name, origin.name);
+        if (!channel.muted)
+            broadcaster.newUserFeedback(channel.name, origin.name);
     }
 
     @Override
-    protected void onNewFeedback(String botId, TextMessage msg) throws Exception {
-        Channel channel = getChannel(botId);
+    protected void onNewFeedback(Channel channel, TextMessage msg) throws Exception {
         broadcaster.forwardFeedback(channel.name, msg);
     }
 
     @Override
-    protected void onNewFeedback(String botId, ImageMessage msg) throws Exception {
-        Channel channel = getChannel(botId);
+    protected void onNewFeedback(Channel channel, ImageMessage msg) throws Exception {
         broadcaster.forwardFeedback(channel.name, msg);
     }
 }

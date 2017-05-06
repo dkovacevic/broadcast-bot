@@ -95,7 +95,8 @@ public class DbManager {
                             "(Name STRING PRIMARY KEY NOT NULL," +
                             " Welcome STRING," +
                             " Admin STRING," +
-                            " Origin STRING," +
+                            " Muted INTEGER," +
+                            " Origin STRING NOT NULL," +
                             " Token STRING NOT NULL)"
             );
 
@@ -288,26 +289,40 @@ public class DbManager {
         }
     }
 
-    public void updateChannel(String channelName, String token, String origin) throws SQLException {
+    public void insertChannel(String channelName, String token, String origin) throws SQLException {
         try (Connection connection = getConnection()) {
-            String cmd = "REPLACE INTO Channel " +
-                    "(Name, Token, Origin) " +
-                    "VALUES(?, ?, ?)";
+            String cmd = "INSERT INTO Channel " +
+                    "(Name, Token, Origin, Welcome) " +
+                    "VALUES(?, ?, ?, ?)";
             PreparedStatement stm = connection.prepareStatement(cmd);
             stm.setString(1, channelName);
             stm.setString(2, token);
             stm.setString(3, origin);
+            stm.setString(4, String.format("This is **%s** channel", channelName));
+
             stm.executeUpdate();
         }
     }
 
-    public void setAdminChannel(String channelName, String admin) throws SQLException {
+    public void updateChannel(String channelName, String param, String value) throws SQLException {
         try (Connection connection = getConnection()) {
-            String cmd = "UPDATE Channel " +
-                    "SET Admin = ? " +
-                    "WHERE Name = ?";
+            String cmd = String.format("UPDATE Channel " +
+                    "SET %s = ? " +
+                    "WHERE Name = ?", param);
             PreparedStatement stm = connection.prepareStatement(cmd);
-            stm.setString(1, admin);
+            stm.setString(1, value);
+            stm.setString(2, channelName);
+            stm.executeUpdate();
+        }
+    }
+
+    public void updateChannel(String channelName, String param, int value) throws SQLException {
+        try (Connection connection = getConnection()) {
+            String cmd = String.format("UPDATE Channel " +
+                    "SET %s = ? " +
+                    "WHERE Name = ?", param);
+            PreparedStatement stm = connection.prepareStatement(cmd);
+            stm.setInt(1, value);
             stm.setString(2, channelName);
             stm.executeUpdate();
         }
@@ -324,6 +339,8 @@ public class DbManager {
                 ret.token = rs.getString("Token");
                 ret.admin = rs.getString("Admin");
                 ret.origin = rs.getString("Origin");
+                ret.welcome = rs.getString("Welcome");
+                ret.muted = rs.getInt("Muted") != 0;
             }
         }
         return ret;

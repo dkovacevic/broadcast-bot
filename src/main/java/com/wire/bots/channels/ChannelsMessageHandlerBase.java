@@ -49,15 +49,15 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
         timer = new Timer();
     }
 
-    abstract protected void onNewBroadcast(String botId, TextMessage msg) throws Exception;
+    abstract protected void broadcast(Channel channel, TextMessage msg) throws Exception;
 
-    abstract protected void onNewBroadcast(String botId, ImageMessage msg, byte[] bytes) throws Exception;
+    abstract protected void broadcast(Channel channel, ImageMessage msg, byte[] bytes) throws Exception;
 
     abstract protected void onNewSubscriber(NewBot newBot) throws Exception;
 
-    abstract protected void onNewFeedback(String botId, TextMessage msg) throws Exception;
+    abstract protected void onNewFeedback(Channel channel, TextMessage msg) throws Exception;
 
-    abstract protected void onNewFeedback(String botId, ImageMessage msg) throws Exception;
+    abstract protected void onNewFeedback(Channel channel, ImageMessage msg) throws Exception;
 
     @Override
     public boolean onNewBot(NewBot newBot) {
@@ -76,15 +76,19 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
     public void onText(WireClient client, TextMessage msg) {
         try {
             String botId = client.getId();
+            Channel channel = getChannel(botId);
 
-            if (isAdminBot(botId)) {
-                onNewBroadcast(botId, msg);
+            if (botId.equals(channel.admin)) {
+                if (!processCommand(channel.name, msg.getText(), client)) {
+                    broadcast(channel, msg);
+                }
             } else {
                 saveMessage(botId, msg);
 
-                likeMessage(client, msg.getMessageId());
+                //likeMessage(client, msg.getMessageId());
 
-                onNewFeedback(botId, msg);
+                if (!channel.muted)
+                    onNewFeedback(channel, msg);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -96,16 +100,18 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
     public void onImage(WireClient client, ImageMessage msg) {
         try {
             String botId = client.getId();
+            Channel channel = getChannel(botId);
 
-            if (isAdminBot(botId)) {
+            if (botId.equals(channel.admin)) {
                 byte[] bytes = client.downloadAsset(msg.getAssetKey(), msg.getAssetToken(), msg.getSha256(), msg.getOtrKey());
-                onNewBroadcast(botId, msg, bytes);
+                broadcast(channel, msg, bytes);
             } else {
                 saveMessage(botId, msg);
 
-                likeMessage(client, msg.getMessageId());
+                //likeMessage(client, msg.getMessageId());
 
-                onNewFeedback(botId, msg);
+                if (!channel.muted)
+                    onNewFeedback(channel, msg);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -119,10 +125,11 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
             String botId = client.getId();
             Channel channel = getChannel(botId);
             if (botId.equals(channel.admin)) {
-                String msg = String.format("This is Admin Conversation for the Channel: `%s`." +
-                                "\nYou should rename this conv to something like: `Admin %s`." +
-                                "\nUse this conversation to broadcast. Don't leave or delete this conv." +
-                                "\nOthers can subscribe to this channel by clicking on: wire.com/b/%s",
+                String msg = String.format("This is Admin Conversation for the Channel: **%s**." +
+                                "\nYou should rename this conversation to something like: `Admin %s`." +
+                                "\nUse this conversation to broadcast. Don't leave or delete it!" +
+                                "\nOthers can subscribe to this channel by clicking on: wire.com/b/%s" +
+                                "\nType: /help",
                         channel.name,
                         channel.name,
                         channel.name);
@@ -130,34 +137,8 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
                 return;
             }
 
-            String label = String.format("This is %s channel", channel.name);
+            String label = channel.welcome != null ? channel.welcome : String.format("This is **%s** channel", channel.name);
             client.sendText(label);
-
-            /*
-            long from = new Date().getTime() - TimeUnit.MINUTES.toMillis(config.getFallback());
-            for (Broadcast b : Service.dbManager.getBroadcast(from / 1000)) {
-                if (b.getText() != null) {
-                    client.sendText(b.getText());
-                } else if (b.getUrl() != null) {
-                    Picture preview = new Picture(b.getAssetData());
-                    preview.setAssetKey(b.getAssetKey());
-                    preview.setAssetToken(b.getToken());
-                    preview.setOtrKey(b.getOtrKey());
-                    preview.setSha256(b.getSha256());
-
-                    client.sendLinkPreview(b.getUrl(), b.getTitle(), preview);
-                } else if (b.getAssetData() != null) {
-                    Picture picture = new Picture(b.getAssetData());
-                    picture.setAssetKey(b.getAssetKey());
-                    picture.setAssetToken(b.getToken());
-                    picture.setOtrKey(b.getOtrKey());
-                    picture.setSha256(b.getSha256());
-                    picture.setExpires(TimeUnit.MINUTES.toMillis(config.getExpiration()));
-
-                    client.sendPicture(picture);
-                }
-            }
-            */
         } catch (Exception e) {
             e.printStackTrace();
             Logger.error(e.getMessage());
@@ -179,7 +160,8 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
     public void onMemberJoin(WireClient client, ArrayList<String> userIds) {
         try {
             Channel channel = getChannel(client.getId());
-            broadcaster.sendOnMemberFeedback(channel.name, "**%s** joined", userIds);
+            if (!channel.muted)
+                broadcaster.sendOnMemberFeedback(channel.name, "**%s** joined", userIds);
         } catch (SQLException e) {
             e.printStackTrace();
             Logger.error(e.getMessage());
@@ -190,7 +172,8 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
     public void onMemberLeave(WireClient client, ArrayList<String> userIds) {
         try {
             Channel channel = getChannel(client.getId());
-            broadcaster.sendOnMemberFeedback(channel.name, "**%s** left", userIds);
+            if (!channel.muted)
+                broadcaster.sendOnMemberFeedback(channel.name, "**%s** left", userIds);
         } catch (SQLException e) {
             e.printStackTrace();
             Logger.error(e.getMessage());
@@ -200,35 +183,26 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
     @Override
     public void onEvent(WireClient client, String userId, Messages.GenericMessage msg) {
         String botId = client.getId();
-        if (msg.hasReaction()) {
-            onMemberFeedbackLike(client, userId);
-        }
-
-        if (msg.hasDeleted()) {
-            onMemberFeedbackDel(botId, msg.getDeleted().getMessageId());
-        }
-    }
-
-    private void onMemberFeedbackDel(String botId, String messageId) {
         try {
             Channel channel = getChannel(botId);
-            if (botId.equals(channel.admin)) {
-                broadcaster.revokeBroadcast(channel.name, messageId);
+
+            if (msg.hasReaction()) {
+                onMemberFeedbackLike(channel, userId);
+            }
+
+            if (msg.hasDeleted() && botId.equals(channel.admin)) {
+                broadcaster.revokeBroadcast(channel.name, msg.getDeleted().getMessageId());
             }
         } catch (SQLException e) {
-            Logger.error("Error revoking broadcast. " + e.getMessage());
+            Logger.error(e.getMessage());
         }
     }
 
-    private void onMemberFeedbackLike(WireClient client, String userId) {
-        try {
-            Channel channel = getChannel(client.getId());
-            ArrayList<String> userIds = new ArrayList<>();
-            userIds.add(userId);
+    private void onMemberFeedbackLike(Channel channel, String userId) {
+        ArrayList<String> userIds = new ArrayList<>();
+        userIds.add(userId);
+        if (!channel.muted)
             broadcaster.sendOnMemberFeedback(channel.name, "**%s** liked", userIds);
-        } catch (SQLException e) {
-            Logger.error("Error onEvent (Like). " + e.getMessage());
-        }
     }
 
     private void likeMessage(final WireClient client, final String messageId) {
@@ -278,21 +252,42 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
     private void saveNewBot(NewBot newBot) {
         try {
             Service.dbManager.insertUser(newBot);
-
         } catch (SQLException e) {
             e.printStackTrace();
             Logger.error(e.getLocalizedMessage());
         }
     }
 
-    private boolean isAdminBot(String botId) {
-        try {
-            Channel channel = getChannel(botId);
-            return botId.equals(channel.admin);
-        } catch (SQLException e) {
-            Logger.error(e.getMessage());
-            return false;
+    private boolean processCommand(String channelName, String text, WireClient client) throws Exception {
+        boolean ret = false;
+        if (text.startsWith("/"))
+            ret = true;
+
+        if (text.startsWith("/help")) {
+            String h = "List of available commands:\n" +
+                    "`/welcome <text>` Update text that is shown to new subscribers when they join\n" +
+                    "`/mute` Mute all incoming messages from subscribers\n" +
+                    "`/unmute` Unmute all incoming messages from subscribers\n" +
+                    "`/stats` Show some statistics: #posts, #subscribers, #feedbacks ...";
+
+            client.sendText(h);
         }
+        if (text.startsWith("/welcome")) {
+            Service.dbManager.updateChannel(channelName, "welcome", text.replace("/welcome", "").trim());
+            client.sendText("Updated `welcome` message");
+        }
+        if (text.equalsIgnoreCase("/mute")) {
+            Service.dbManager.updateChannel(channelName, "muted", 1);
+            client.sendText("You won't receive info about subscribers' activity anymore. Type `/unmute` to resume");
+        }
+        if (text.equalsIgnoreCase("/unmute")) {
+            Service.dbManager.updateChannel(channelName, "muted", 0);
+            client.sendText("Resumed. Type `/mute` to mute");
+        }
+        if (text.equalsIgnoreCase("/stats")) {
+            client.sendText("Looking great :p");
+        }
+        return ret;
     }
 
     protected Channel getChannel(String botId) throws SQLException {

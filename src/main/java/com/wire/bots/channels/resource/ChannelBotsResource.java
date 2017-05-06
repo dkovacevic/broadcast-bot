@@ -63,7 +63,7 @@ public class ChannelBotsResource {
 
         if (newBot.origin.id.equals(channel.origin) && channel.admin == null) {
             Logger.info("Setting admin conv %s for the channel: %s", newBot.id, channelName);
-            Service.dbManager.setAdminChannel(channelName, newBot.id);
+            Service.dbManager.updateChannel(channelName, "Admin", newBot.id);
             isAdmin = true;
         }
 

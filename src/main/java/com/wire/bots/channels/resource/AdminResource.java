@@ -10,6 +10,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response;
+import java.sql.SQLException;
 
 @Path("/admin/channels/{name}")
 public class AdminResource {
@@ -37,7 +38,15 @@ public class AdminResource {
                 admin.getOrigin(),
                 admin.getToken());
 
-        Service.dbManager.updateChannel(channelName, admin.token, admin.origin);
+        try {
+            Service.dbManager.insertChannel(channelName, admin.token, admin.origin);
+        } catch (SQLException e) {
+            Logger.warning(e.getMessage());
+            return Response.
+                    ok("Channel named: " + channelName + " already exist").
+                    status(405).
+                    build();
+        }
 
         return Response.
                 ok().
