@@ -67,7 +67,7 @@ public class ChannelBotsResource {
             isAdmin = true;
         }
 
-        Service.dbManager.insertBot2Channel(channelName, newBot.id);
+        Service.dbManager.insertNewBot(newBot.id, channelName, newBot.origin.name, newBot.origin.id, newBot.conversation.id);
 
         if (!isAdmin) {
             if (!handler.onNewBot(newBot))

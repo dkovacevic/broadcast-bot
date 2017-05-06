@@ -53,7 +53,7 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
 
     abstract protected void broadcast(Channel channel, ImageMessage msg, byte[] bytes) throws Exception;
 
-    abstract protected void onNewSubscriber(NewBot newBot) throws Exception;
+    abstract protected void onNewSubscriber(Channel channel, NewBot newBot) throws Exception;
 
     abstract protected void onNewFeedback(Channel channel, TextMessage msg) throws Exception;
 
@@ -62,11 +62,9 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
     @Override
     public boolean onNewBot(NewBot newBot) {
         try {
-            saveNewBot(newBot);
-
-            onNewSubscriber(newBot);
+            Channel channel = getChannel(newBot.id);
+            onNewSubscriber(channel, newBot);
         } catch (Exception e) {
-            e.printStackTrace();
             Logger.error(e.getLocalizedMessage());
         }
         return true;
@@ -91,7 +89,6 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
                     onNewFeedback(channel, msg);
             }
         } catch (Exception e) {
-            e.printStackTrace();
             Logger.error(e.getLocalizedMessage());
         }
     }
@@ -114,7 +111,6 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
                     onNewFeedback(channel, msg);
             }
         } catch (Exception e) {
-            e.printStackTrace();
             Logger.error(e.getLocalizedMessage());
         }
     }
@@ -140,7 +136,6 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
             String label = channel.welcome != null ? channel.welcome : String.format("This is **%s** channel", channel.name);
             client.sendText(label);
         } catch (Exception e) {
-            e.printStackTrace();
             Logger.error(e.getMessage());
         }
     }
@@ -151,7 +146,6 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
             Service.dbManager.removeSubscriber(botId);
             Logger.info("Removed Subscriber: %s", botId);
         } catch (SQLException e) {
-            e.printStackTrace();
             Logger.error(e.getMessage());
         }
     }
@@ -163,7 +157,6 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
             if (!channel.muted)
                 broadcaster.sendOnMemberFeedback(channel.name, "**%s** joined", userIds);
         } catch (SQLException e) {
-            e.printStackTrace();
             Logger.error(e.getMessage());
         }
     }
@@ -175,7 +168,6 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
             if (!channel.muted)
                 broadcaster.sendOnMemberFeedback(channel.name, "**%s** left", userIds);
         } catch (SQLException e) {
-            e.printStackTrace();
             Logger.error(e.getMessage());
         }
     }
@@ -245,15 +237,6 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
             m.setMimeType("text");
             Service.dbManager.insertMessage(m);
         } catch (SQLException e) {
-            Logger.error(e.getLocalizedMessage());
-        }
-    }
-
-    private void saveNewBot(NewBot newBot) {
-        try {
-            Service.dbManager.insertUser(newBot);
-        } catch (SQLException e) {
-            e.printStackTrace();
             Logger.error(e.getLocalizedMessage());
         }
     }

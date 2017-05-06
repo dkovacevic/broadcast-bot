@@ -5,10 +5,7 @@ import com.wire.bots.channels.model.Admin;
 import com.wire.bots.channels.model.Config;
 import com.wire.bots.sdk.Logger;
 
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
+import javax.ws.rs.*;
 import javax.ws.rs.core.Response;
 import java.sql.SQLException;
 
@@ -33,7 +30,7 @@ public class AdminResource {
                     build();
         }
 
-        Logger.info("Admin: channel: %s, origin: %s, token: %s",
+        Logger.info("New Channel: %s, origin: %s, token: %s created",
                 channelName,
                 admin.getOrigin(),
                 admin.getToken());
@@ -43,7 +40,7 @@ public class AdminResource {
         } catch (SQLException e) {
             Logger.warning(e.getMessage());
             return Response.
-                    ok("Channel named: " + channelName + " already exist").
+                    ok("Channel named: " + channelName + " already exists").
                     status(405).
                     build();
         }
@@ -51,6 +48,33 @@ public class AdminResource {
         return Response.
                 ok().
                 status(200).
+                build();
+    }
+
+    @DELETE
+    public Response deleteBot(@HeaderParam("Authorization") String auth,
+                              @PathParam("name") String channelName,
+                              Admin admin) throws Exception {
+
+        if (!auth.equals(config.getAppSecret())) {
+            Logger.warning("Admin: Invalid Authorization.");
+            return Response.
+                    status(403).
+                    build();
+        }
+
+        Logger.info("Delete Channel: %s, origin: %s, token: %s",
+                channelName,
+                admin.getOrigin(),
+                admin.getToken());
+
+        Service.dbManager.deleteChannel(channelName, admin.origin);
+
+        Service.dbManager.deleteBots(channelName);
+
+        return Response.
+                ok().
+                status(201).
                 build();
     }
 }
