@@ -14,6 +14,6 @@
  - Subscribers posting in a Channel is faster than posting in a big Group conversation
 
 ## Create new channel
- - Register as Wire Bot Developer via Don at: wire.com/b/don
+ - Register as Wire Bot Developer via Don at: https://app.wire.com/?bot=don
  - Ask Don to create youe public channel by typing: `create public chennel`
  
