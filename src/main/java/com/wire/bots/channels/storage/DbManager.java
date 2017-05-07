@@ -39,9 +39,9 @@ public class DbManager {
         }
 
         try (Connection connection = getConnection()) {
-            Statement statement = connection.createStatement();
+            Statement stm = connection.createStatement();
 
-            int update = statement.executeUpdate("CREATE TABLE IF NOT EXISTS Message " +
+            stm.executeUpdate("CREATE TABLE IF NOT EXISTS Message " +
                     "(Id INTEGER PRIMARY KEY AUTOINCREMENT," +
                     " BotId STRING," +
                     " Channel STRING," +
@@ -54,10 +54,8 @@ public class DbManager {
                     " Size INTEGER," +
                     " Sha256 BLOB," +
                     " Time INTEGER)");
-            if (update > 0)
-                Logger.info("CREATED TABLE Message");
 
-            update = statement.executeUpdate("CREATE TABLE IF NOT EXISTS Broadcast " +
+            stm.executeUpdate("CREATE TABLE IF NOT EXISTS Broadcast " +
                     "(Id INTEGER PRIMARY KEY AUTOINCREMENT," +
                     " Channel STRING," +
                     " Text STRING," +
@@ -72,19 +70,18 @@ public class DbManager {
                     " Size INTEGER," +
                     " Sha256 BLOB," +
                     " Time INTEGER)");
-            if (update > 0)
-                Logger.info("CREATED TABLE Broadcast");
 
-            statement.executeUpdate("CREATE TABLE IF NOT EXISTS Channel " +
+            stm.executeUpdate("CREATE TABLE IF NOT EXISTS Channel " +
                             "(Name STRING PRIMARY KEY NOT NULL," +
                             " Welcome STRING," +
+                            " Intro STRING," +
                             " Admin STRING," +
                             " Muted INTEGER," +
                             " Origin STRING NOT NULL," +
                             " Token STRING NOT NULL)"
             );
 
-            statement.executeUpdate("CREATE TABLE IF NOT EXISTS Bots " +
+            stm.executeUpdate("CREATE TABLE IF NOT EXISTS Bots " +
                             "(BotId STRING PRIMARY KEY, " +
                             "Origin STRING NOT NULL, " +
                             "UserName STRING NOT NULL, " +
@@ -283,7 +280,8 @@ public class DbManager {
                 ret.token = rs.getString("Token");
                 ret.admin = rs.getString("Admin");
                 ret.origin = rs.getString("Origin");
-                ret.welcome = rs.getString("Welcome");
+                ret.introText = rs.getString("Welcome");
+                ret.introPic = rs.getString("Intro");
                 ret.muted = rs.getInt("Muted") != 0;
             }
         }

@@ -36,7 +36,7 @@ public class Service extends Server<Config> {
 
     @Override
     protected MessageHandlerBase createHandler(Config config, Environment env) {
-        return new ChannelsMessageHandler(repo);
+        return new MessageHandler(repo);
     }
 
     @Override

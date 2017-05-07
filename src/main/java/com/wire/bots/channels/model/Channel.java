@@ -5,6 +5,7 @@ public class Channel {
     public String token;
     public String admin;
     public String origin;
-    public String welcome;
+    public String introText;
+    public String introPic;
     public boolean muted;
 }

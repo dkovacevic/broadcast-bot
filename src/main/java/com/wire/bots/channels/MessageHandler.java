@@ -25,36 +25,37 @@ import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.Logger;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.WireClient;
+import com.wire.bots.sdk.assets.Picture;
+import com.wire.bots.sdk.models.AssetKey;
 import com.wire.bots.sdk.models.ImageMessage;
 import com.wire.bots.sdk.models.TextMessage;
 import com.wire.bots.sdk.server.model.NewBot;
+import com.wire.bots.sdk.server.model.User;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
 
-abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
+class MessageHandler extends MessageHandlerBase {
     protected final Broadcaster broadcaster;
 
-    protected ChannelsMessageHandlerBase(ClientRepo repo) {
+    MessageHandler(ClientRepo repo) {
         broadcaster = new Broadcaster(repo);
     }
-
-    abstract protected void broadcast(Channel channel, TextMessage msg) throws Exception;
-
-    abstract protected void broadcast(Channel channel, ImageMessage msg, byte[] bytes) throws Exception;
-
-    abstract protected void onNewSubscriber(Channel channel, NewBot newBot) throws Exception;
-
-    abstract protected void onNewFeedback(Channel channel, TextMessage msg) throws Exception;
-
-    abstract protected void onNewFeedback(Channel channel, ImageMessage msg) throws Exception;
 
     @Override
     public boolean onNewBot(NewBot newBot) {
         try {
             Channel channel = getChannel(newBot.id);
-            onNewSubscriber(channel, newBot);
+            User origin = newBot.origin;
+            Logger.info(String.format("onNewSubscriber: channel: %s, origin: %s, '%s' locale: %s",
+                    channel.name,
+                    origin.id,
+                    origin.name,
+                    newBot.locale));
+
+            if (!channel.muted)
+                broadcaster.newUserFeedback(channel.admin, origin.name);
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
         }
@@ -69,13 +70,13 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
 
             if (botId.equals(channel.admin)) {
                 if (!processCommand(channel.name, msg.getText(), client)) {
-                    broadcast(channel, msg);
+                    broadcaster.broadcast(channel, msg);
                 }
             } else {
                 saveMessage(botId, msg, channel.name);
 
                 if (!channel.muted)
-                    onNewFeedback(channel, msg);
+                    broadcaster.forwardFeedback(channel.admin, msg);
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
@@ -90,12 +91,12 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
 
             if (botId.equals(channel.admin)) {
                 byte[] bytes = client.downloadAsset(msg.getAssetKey(), msg.getAssetToken(), msg.getSha256(), msg.getOtrKey());
-                broadcast(channel, msg, bytes);
+                broadcaster.broadcast(channel.name, msg, bytes);
             } else {
                 saveMessage(botId, msg, channel.name);
 
                 if (!channel.muted)
-                    onNewFeedback(channel, msg);
+                    broadcaster.forwardFeedback(channel.admin, msg);
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
@@ -120,7 +121,15 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
                 return;
             }
 
-            String label = channel.welcome != null ? channel.welcome : String.format("This is **%s** channel", channel.name);
+            if (channel.introPic != null) {
+                Picture picture = new Picture(channel.introPic);
+                AssetKey assetKey = client.uploadAsset(picture);
+                picture.setAssetKey(assetKey.key);
+                picture.setAssetToken(assetKey.token);
+                client.sendPicture(picture);
+            }
+
+            String label = channel.introText != null ? channel.introText : String.format("This is **%s** channel", channel.name);
             client.sendText(label);
         } catch (Exception e) {
             Logger.error(e.getMessage());
@@ -197,7 +206,6 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
             m.setTime(new Date().getTime() / 1000);
             m.setMimeType(msg.getMimeType());
             m.setChannel(channel);
-
             Service.dbManager.insertMessage(m);
         } catch (SQLException e) {
             Logger.error(e.getLocalizedMessage());
@@ -225,16 +233,23 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
 
         if (text.startsWith("/help")) {
             String h = "List of available commands:\n" +
-                    "`/welcome <text>` Update text that is shown to new subscribers when they join\n" +
-                    "`/mute` Mute all incoming messages from subscribers\n" +
-                    "`/unmute` Unmute all incoming messages from subscribers\n" +
-                    "`/stats` Show some statistics: #posts, #subscribers, #feedbacks ...";
+                    "`/intro <text>` Set **Intro Text** for new Subscribers\n" +
+                    "`/intro <url>`  Set **Intro Picture** for new Subscribers\n" +
+                    "`/mute`         **Mute** all incoming messages from Subscribers\n" +
+                    "`/unmute`       **Unmute** all incoming messages from Subscribers\n" +
+                    "`/stats`        Show some **statistics**: #posts, #subscribers, #feedbacks ...";
 
             client.sendText(h);
         }
-        if (text.startsWith("/welcome")) {
-            Service.dbManager.updateChannel(channelName, "welcome", text.replace("/welcome", "").trim());
-            client.sendText("Updated `welcome` message");
+        if (text.startsWith("/intro")) {
+            String intro = text.replace("/intro", "").trim();
+            if (intro.startsWith("http")) {
+                Service.dbManager.updateChannel(channelName, "intro", intro);
+                client.sendText("Updated `intro picture`");
+            } else {
+                Service.dbManager.updateChannel(channelName, "welcome", intro);
+                client.sendText("Updated `intro text`");
+            }
         }
         if (text.equalsIgnoreCase("/mute")) {
             Service.dbManager.updateChannel(channelName, "muted", 1);

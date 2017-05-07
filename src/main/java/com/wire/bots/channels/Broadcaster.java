@@ -274,7 +274,6 @@ public class Broadcaster {
         }
     }
 
-    /*
     private ArrayList<String> getSubscribers(String channelName) {
         ArrayList<String> ret = new ArrayList<>();
         try {
@@ -289,8 +288,10 @@ public class Broadcaster {
         }
         return ret;
     }
-    */
+
+    /*
     private ArrayList<String> getSubscribers(String channelName) throws SQLException {
         return Service.dbManager.getSubscribers(channelName);
     }
+    */
 }

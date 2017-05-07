@@ -2,7 +2,7 @@
 
 NAME="channel"
 
-git pull
+#git pull
 (cd ..; mvn -Plinux package)
 docker build --tag wire/$NAME -f ../Dockerfile ../.
 docker tag wire/$NAME:latest eu.gcr.io/wire-bot/$NAME

@@ -50,6 +50,13 @@ public class BotsResource {
                            NewBot newBot) throws Exception {
 
         Channel channel = Service.dbManager.getChannel(channelName);
+        if (channel == null) {
+            Logger.warning("Unknown channel: %s.", channelName);
+            return Response.
+                    status(404).
+                    build();
+        }
+
         if (!Util.compareTokens(auth, channel.token)) {
             Logger.warning("Invalid Authorization for the channel: %s.", channelName);
             return Response.
