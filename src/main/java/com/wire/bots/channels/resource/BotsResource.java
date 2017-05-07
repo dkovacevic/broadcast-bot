@@ -33,12 +33,12 @@ import java.io.File;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Path("/channels/{name}/bots")
-public class ChannelBotsResource {
+public class BotsResource {
     private final MessageHandlerBase handler;
     private final Configuration conf;
     private final ClientRepo repo;
 
-    public ChannelBotsResource(MessageHandlerBase handler, ClientRepo repo, Config conf) {
+    public BotsResource(MessageHandlerBase handler, ClientRepo repo, Config conf) {
         this.handler = handler;
         this.conf = conf;
         this.repo = repo;
@@ -57,27 +57,20 @@ public class ChannelBotsResource {
                     build();
         }
 
-        boolean isAdmin = false;
+        Logger.info("New Bot: %s for the Channel: %s, Origin: %s", newBot.id, channelName, newBot.origin.handle);
 
-        Logger.info("New Bot: %s for the Channel: %s", newBot.id, channelName);
+        Service.dbManager.insertNewBot(newBot.id, channelName, newBot.origin.name, newBot.origin.id, newBot.conversation.id);
 
         if (newBot.origin.id.equals(channel.origin) && channel.admin == null) {
             Logger.info("Setting admin conv %s for the channel: %s", newBot.id, channelName);
             Service.dbManager.updateChannel(channelName, "Admin", newBot.id);
-            isAdmin = true;
-        }
-
-        Service.dbManager.insertNewBot(newBot.id, channelName, newBot.origin.name, newBot.origin.id, newBot.conversation.id);
-
-        if (!isAdmin) {
-            if (!handler.onNewBot(newBot))
-                return Response.
-                        status(409).
-                        build();
+        } else if (!handler.onNewBot(newBot)) {
+            return Response.
+                    status(409).
+                    build();
         }
 
         String path = String.format("%s/%s", conf.getCryptoDir(), newBot.id);
-
         File dir = new File(path);
         if (!dir.mkdirs())
             Logger.warning("Failed to create dir: %s", dir.getAbsolutePath());

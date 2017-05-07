@@ -13,8 +13,8 @@ import javax.ws.rs.core.Response;
 
 @Consumes(MediaType.APPLICATION_JSON)
 @Path("/channels/{name}/bots/{bot}/messages")
-public class ChannelMessageResource extends MessageResourceBase {
-    public ChannelMessageResource(MessageHandlerBase handler, ClientRepo repo, Config conf) {
+public class MessageResource extends MessageResourceBase {
+    public MessageResource(MessageHandlerBase handler, ClientRepo repo, Config conf) {
         super(handler, conf, repo);
     }
 
@@ -25,6 +25,13 @@ public class ChannelMessageResource extends MessageResourceBase {
                                InboundMessage inbound) throws Exception {
 
         Channel channel = Service.dbManager.getChannel(channelName);
+        if (channel == null) {
+            Logger.warning("Unknown channel: %s.", channelName);
+            return Response.
+                    status(404).
+                    build();
+        }
+
         if (!Util.compareTokens(auth, channel.token)) {
             Logger.warning("Invalid Authorization for the channel: %s.", channelName);
             return Response.
@@ -32,9 +39,7 @@ public class ChannelMessageResource extends MessageResourceBase {
                     build();
         }
 
-        WireClient client = repo.getWireClient(bot);
-
-        handleMessage(inbound, client);
+        handleMessage(inbound, repo.getWireClient(bot));
 
         return Response.
                 ok().

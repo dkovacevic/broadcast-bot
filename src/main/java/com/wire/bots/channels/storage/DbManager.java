@@ -44,6 +44,7 @@ public class DbManager {
             int update = statement.executeUpdate("CREATE TABLE IF NOT EXISTS Message " +
                     "(Id INTEGER PRIMARY KEY AUTOINCREMENT," +
                     " BotId STRING," +
+                    " Channel STRING," +
                     " UserId STRING," +
                     " Text STRING," +
                     " Asset_key STRING," +
@@ -58,6 +59,7 @@ public class DbManager {
 
             update = statement.executeUpdate("CREATE TABLE IF NOT EXISTS Broadcast " +
                     "(Id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    " Channel STRING," +
                     " Text STRING," +
                     " Asset BLOB," +
                     " Url STRING," +
@@ -89,7 +91,6 @@ public class DbManager {
                             "Conversation STRING NOT NULL, " +
                             "Channel STRING NOT NULL)"
             );
-
         } catch (Exception e) {
             e.printStackTrace();
             Logger.error(e.getLocalizedMessage());
@@ -99,8 +100,8 @@ public class DbManager {
     public int insertMessage(Message msg) throws SQLException {
         try (Connection connection = getConnection()) {
             String cmd = "INSERT INTO Message " +
-                    "(BotId, UserId, Text, Asset_key, Token, Otr_key, Mime_type, Size , Sha256, Time) " +
-                    "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "(BotId, UserId, Text, Asset_key, Token, Otr_key, Mime_type, Size , Sha256, Time, Channel) " +
+                    "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             PreparedStatement stm = connection.prepareStatement(cmd);
             stm.setString(1, msg.getBotId());
@@ -113,16 +114,38 @@ public class DbManager {
             stm.setLong(8, msg.getSize());
             stm.setBytes(9, msg.getSha256());
             stm.setLong(10, new Date().getTime() / 1000);
+            stm.setString(11, msg.getChannel());
 
             return stm.executeUpdate();
         }
     }
 
+    public ArrayList<Message> getMessages(String channel) throws SQLException {
+        ArrayList<Message> ret = new ArrayList<>();
+        try (Connection connection = getConnection()) {
+            PreparedStatement stm = connection.prepareStatement("SELECT * FROM Message WHERE Channel = ?");
+            stm.setString(1, channel);
+            ResultSet rs = stm.executeQuery();
+            while (rs.next()) {
+                Message msg = new Message();
+                msg.setBotId(rs.getString("BotId"));
+                msg.setUserId(rs.getString("UserId"));
+                msg.setText(rs.getString("Text"));
+                msg.setAssetKey(rs.getString("Asset_key"));
+                msg.setToken(rs.getString("Token"));
+                msg.setTime(rs.getInt("Time"));
+                msg.setChannel(rs.getString("Channel"));
+                ret.add(msg);
+            }
+        }
+        return ret;
+    }
+
     public int insertBroadcast(Broadcast broadcast) throws SQLException {
         try (Connection connection = getConnection()) {
             String cmd = "INSERT INTO Broadcast " +
-                    "(Text, Asset, Url, Title, Asset_key, Token, Otr_key, Mime_type, Size , Sha256, Time, MessageId) " +
-                    "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "(Text, Asset, Url, Title, Asset_key, Token, Otr_key, Mime_type, Size , Sha256, Time, MessageId, Channel) " +
+                    "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             PreparedStatement stm = connection.prepareStatement(cmd);
             stm.setString(1, broadcast.getText());
@@ -137,9 +160,38 @@ public class DbManager {
             stm.setBytes(10, broadcast.getSha256());
             stm.setLong(11, new Date().getTime() / 1000);
             stm.setString(12, broadcast.getMessageId());
+            stm.setString(13, broadcast.getChannel());
 
             return stm.executeUpdate();
         }
+    }
+
+    public ArrayList<Broadcast> getBroadcasts(String channel) throws SQLException {
+        ArrayList<Broadcast> ret = new ArrayList<>();
+        try (Connection connection = getConnection()) {
+            PreparedStatement stm = connection.prepareStatement("SELECT * FROM Broadcast WHERE Channel = ?");
+            stm.setString(1, channel);
+            ResultSet rs = stm.executeQuery();
+            while (rs.next()) {
+                Broadcast b = new Broadcast();
+                b.setId(rs.getInt("Id"));
+                b.setText(rs.getString("Text"));
+                b.setUrl(rs.getString("Url"));
+                b.setTitle(rs.getString("Title"));
+                b.setAssetKey(rs.getString("Asset_key"));
+                b.setToken(rs.getString("Token"));
+                b.setAssetData(rs.getBytes("Asset"));
+                b.setOtrKey(rs.getBytes("Otr_key"));
+                b.setSha256(rs.getBytes("Sha256"));
+                b.setSize(rs.getInt("Size"));
+                b.setMimeType(rs.getString("Mime_type"));
+                b.setMessageId(rs.getString("MessageId"));
+                b.setTime(rs.getInt("Time"));
+                b.setChannel(rs.getString("Channel"));
+                ret.add(b);
+            }
+        }
+        return ret;
     }
 
     public int deleteBroadcast(String messageId) throws SQLException {
@@ -220,12 +272,13 @@ public class DbManager {
     }
 
     public Channel getChannel(String channelName) throws SQLException {
-        Channel ret = new Channel();
+        Channel ret = null;
         try (Connection conn = getConnection()) {
             PreparedStatement stm = conn.prepareStatement("SELECT * FROM Channel WHERE Name = ?");
             stm.setString(1, channelName);
             ResultSet rs = stm.executeQuery();
-            while (rs.next()) {
+            if (rs.next()) {
+                ret = new Channel();
                 ret.name = rs.getString("Name");
                 ret.token = rs.getString("Token");
                 ret.admin = rs.getString("Admin");
@@ -242,7 +295,7 @@ public class DbManager {
             PreparedStatement stm = conn.prepareStatement("SELECT Channel FROM Bots WHERE BotId = ?");
             stm.setString(1, botId);
             ResultSet rs = stm.executeQuery();
-            while (rs.next()) {
+            if (rs.next()) {
                 return rs.getString("Channel");
             }
             return null;
@@ -261,11 +314,10 @@ public class DbManager {
         return DriverManager.getConnection(String.format("jdbc:sqlite:%s", path));
     }
 
-    public boolean deleteChannel(String channelName, String origin) throws SQLException {
+    public boolean deleteChannel(String channelName) throws SQLException {
         try (Connection conn = getConnection()) {
-            PreparedStatement stm = conn.prepareStatement("DELETE from Channel WHERE Name = ? AND Origin = ?");
+            PreparedStatement stm = conn.prepareStatement("DELETE from Channel WHERE Name = ?");
             stm.setString(1, channelName);
-            stm.setString(2, origin);
             return stm.execute();
         }
     }

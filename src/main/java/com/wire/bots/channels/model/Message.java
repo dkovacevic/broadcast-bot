@@ -28,6 +28,7 @@ public class Message {
     private long size;
     private long time;
     private byte[] sha256;
+    private String channel;
 
     public String getBotId() {
         return botId;
@@ -107,5 +108,13 @@ public class Message {
 
     public void setSha256(byte[] sha256) {
         this.sha256 = sha256;
+    }
+
+    public void setChannel(String channel) {
+        this.channel = channel;
+    }
+
+    public String getChannel() {
+        return channel;
     }
 }

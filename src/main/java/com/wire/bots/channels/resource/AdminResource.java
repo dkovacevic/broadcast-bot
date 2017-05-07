@@ -2,6 +2,7 @@ package com.wire.bots.channels.resource;
 
 import com.wire.bots.channels.Service;
 import com.wire.bots.channels.model.Admin;
+import com.wire.bots.channels.model.Channel;
 import com.wire.bots.channels.model.Config;
 import com.wire.bots.sdk.Logger;
 
@@ -63,17 +64,34 @@ public class AdminResource {
                     build();
         }
 
-        Logger.info("Delete Channel: %s, origin: %s, token: %s",
+        Logger.warning("Delete Channel: %s, origin: %s, token: %s",
                 channelName,
                 admin.getOrigin(),
                 admin.getToken());
 
-        Service.dbManager.deleteChannel(channelName, admin.origin);
+        Channel channel = Service.dbManager.getChannel(channelName);
+        if (channel == null) {
+            Logger.warning("Channel does not exist");
+            return Response.
+                    ok("Channel does not exist").
+                    status(404).
+                    build();
+        }
+
+        if (!channel.token.equals(admin.token) || !channel.origin.equals(admin.origin)) {
+            Logger.warning("Wrong token or not the owner");
+            return Response.
+                    ok("Wrong token or not the owner").
+                    status(405).
+                    build();
+        }
+
+        Service.dbManager.deleteChannel(channelName);
 
         Service.dbManager.deleteBots(channelName);
 
         return Response.
-                ok().
+                ok("Channel deleted").
                 status(201).
                 build();
     }

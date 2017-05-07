@@ -47,18 +47,18 @@ public class Broadcaster {
         this.repo = repo;
     }
 
-    public void broadcast(String channel, TextMessage msg) throws Exception {
+    public void broadcast(Channel channel, TextMessage msg) throws Exception {
         String text = msg.getText();
         String messageId = msg.getMessageId();
 
         if (text.startsWith("http")) {
             broadcastUrl(channel, text);
         } else {
-            broadcastText(channel, messageId, text);
+            broadcastText(channel.name, messageId, text);
         }
     }
 
-    public void broadcast(String channel, ImageMessage msg, byte[] imgData) throws Exception {
+    public void broadcast(String channelName, ImageMessage msg, byte[] imgData) throws Exception {
         Picture picture = new Picture(imgData, msg.getMimeType());
         picture.setSize((int) msg.getSize());
         picture.setWidth(msg.getWidth());
@@ -69,18 +69,18 @@ public class Broadcaster {
         picture.setSha256(msg.getSha256());
         picture.setMessageId(msg.getMessageId());
 
-        broadcastPicture(channel, picture);
+        broadcastPicture(channelName, picture);
     }
 
-    public void broadcastUrl(String channelName, final String url) throws Exception {
-        WireClient wireClient = getAdminClient(channelName);
+    public void broadcastUrl(Channel channel, final String url) throws Exception {
+        WireClient adminClient = repo.getWireClient(channel.admin);
 
         final String title = extractPageTitle(url);
-        final Picture preview = uploadPreview(wireClient, extractPagePreview(url));
+        final Picture preview = uploadPreview(adminClient, extractPagePreview(url));
 
-        saveBroadcast(url, title, preview);
+        saveBroadcast(url, title, preview, channel.name);
 
-        for (final String botId : getSubscribers(channelName)) {
+        for (final String botId : getSubscribers(channel.name)) {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -90,14 +90,15 @@ public class Broadcaster {
         }
     }
 
-    public void broadcastText(String channel, final String messageId, final String text) throws SQLException {
+    public void broadcastText(String channelName, final String messageId, final String text) throws SQLException {
         Broadcast b = new Broadcast();
         b.setMessageId(messageId);
         b.setText(text);
+        b.setChannel(channelName);
 
         Service.dbManager.insertBroadcast(b);
 
-        for (final String botId : getSubscribers(channel)) {
+        for (final String botId : getSubscribers(channelName)) {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -107,10 +108,10 @@ public class Broadcaster {
         }
     }
 
-    public void revokeBroadcast(String channel, final String messageId) throws SQLException {
+    public void revokeBroadcast(String channelName, final String messageId) throws SQLException {
         Service.dbManager.deleteBroadcast(messageId);
 
-        for (final String botId : getSubscribers(channel)) {
+        for (final String botId : getSubscribers(channelName)) {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -120,8 +121,8 @@ public class Broadcaster {
         }
     }
 
-    public void forwardFeedback(String channelName, TextMessage msg) throws Exception {
-        WireClient adminClient = getAdminClient(channelName);
+    public void forwardFeedback(String adminBot, TextMessage msg) throws Exception {
+        WireClient adminClient = repo.getWireClient(adminBot);
         ArrayList<String> ids = new ArrayList<>();
         ids.add(msg.getUserId());
         for (User user : adminClient.getUsers(ids)) {
@@ -130,8 +131,8 @@ public class Broadcaster {
         }
     }
 
-    public void forwardFeedback(String channelName, ImageMessage msg) throws Exception {
-        WireClient adminClient = getAdminClient(channelName);
+    public void forwardFeedback(String adminBot, ImageMessage msg) throws Exception {
+        WireClient adminClient = repo.getWireClient(adminBot);
         ArrayList<String> ids = new ArrayList<>();
         ids.add(msg.getUserId());
         for (User user : adminClient.getUsers(ids)) {
@@ -152,9 +153,9 @@ public class Broadcaster {
         }
     }
 
-    public void sendOnMemberFeedback(String channelName, String format, ArrayList<String> userIds) {
+    public void sendOnMemberFeedback(String adminBot, String format, ArrayList<String> userIds) {
         try {
-            WireClient adminClient = getAdminClient(channelName);
+            WireClient adminClient = repo.getWireClient(adminBot);
             for (User user : adminClient.getUsers(userIds)) {
                 String feedback = String.format(format, user.name);
                 adminClient.sendText(feedback);
@@ -164,17 +165,17 @@ public class Broadcaster {
         }
     }
 
-    public void newUserFeedback(String channelName, String userName) throws Exception {
-        WireClient adminClient = getAdminClient(channelName);
+    public void newUserFeedback(String adminBot, String userName) throws Exception {
+        WireClient adminClient = repo.getWireClient(adminBot);
 
         String feedback = String.format("**%s** just joined", userName);
         adminClient.sendText(feedback);
     }
 
-    private void broadcastPicture(String channel, final Picture picture) throws SQLException {
-        saveBroadcast(null, null, picture);
+    private void broadcastPicture(String channelName, final Picture picture) throws SQLException {
+        saveBroadcast(null, null, picture, channelName);
 
-        for (final String botId : getSubscribers(channel)) {
+        for (final String botId : getSubscribers(channelName)) {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -184,7 +185,7 @@ public class Broadcaster {
         }
     }
 
-    private void saveBroadcast(String url, String title, Picture picture) {
+    private void saveBroadcast(String url, String title, Picture picture, String channel) {
         try {
             // save to db
             Broadcast broadcast = new Broadcast();
@@ -198,6 +199,7 @@ public class Broadcaster {
             broadcast.setUrl(url);
             broadcast.setTitle(title);
             broadcast.setMessageId(picture.getMessageId());
+            broadcast.setChannel(channel);
 
             Service.dbManager.insertBroadcast(broadcast);
         } catch (Exception e) {
@@ -219,7 +221,7 @@ public class Broadcaster {
             WireClient client = repo.getWireClient(botId);
             client.sendText(text, 0, messageId);
         } catch (Exception e) {
-            Logger.error("Bot: %s. Error: %s", botId, e.getMessage());
+            Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
         }
     }
 
@@ -228,7 +230,7 @@ public class Broadcaster {
             WireClient client = repo.getWireClient(botId);
             client.sendPicture(picture);
         } catch (Exception e) {
-            Logger.error("Bot: %s. Error: %s", botId, e.getMessage());
+            Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
         }
     }
 
@@ -272,11 +274,7 @@ public class Broadcaster {
         }
     }
 
-    private WireClient getAdminClient(String channelName) throws SQLException {
-        Channel channel = Service.dbManager.getChannel(channelName);
-        return repo.getWireClient(channel.admin);
-    }
-
+    /*
     private ArrayList<String> getSubscribers(String channelName) {
         ArrayList<String> ret = new ArrayList<>();
         try {
@@ -290,5 +288,9 @@ public class Broadcaster {
             Logger.error(e.getMessage());
         }
         return ret;
+    }
+    */
+    private ArrayList<String> getSubscribers(String channelName) throws SQLException {
+        return Service.dbManager.getSubscribers(channelName);
     }
 }

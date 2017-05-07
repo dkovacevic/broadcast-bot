@@ -20,8 +20,8 @@ package com.wire.bots.channels;
 
 import com.wire.bots.channels.model.Config;
 import com.wire.bots.channels.resource.AdminResource;
-import com.wire.bots.channels.resource.ChannelBotsResource;
-import com.wire.bots.channels.resource.ChannelMessageResource;
+import com.wire.bots.channels.resource.BotsResource;
+import com.wire.bots.channels.resource.MessageResource;
 import com.wire.bots.channels.storage.DbManager;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.Server;
@@ -36,23 +36,22 @@ public class Service extends Server<Config> {
 
     @Override
     protected MessageHandlerBase createHandler(Config config, Environment env) {
-        return new ChannelsMessageHandler(repo, config);
+        return new ChannelsMessageHandler(repo);
     }
 
     @Override
     protected void onRun(Config config, Environment env) {
         addResource(new AdminResource(config), env);
-
         dbManager = new DbManager(config.getDatabase());
     }
 
     @Override
     protected void botResource(Config config, Environment env, MessageHandlerBase handler) {
-        addResource(new ChannelBotsResource(handler, repo, config), env);
+        addResource(new BotsResource(handler, repo, config), env);
     }
 
     @Override
     protected void messageResource(Config config, Environment env, MessageHandlerBase handler) {
-        addResource(new ChannelMessageResource(handler, repo, config), env);
+        addResource(new MessageResource(handler, repo, config), env);
     }
 }

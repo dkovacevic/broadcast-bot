@@ -20,7 +20,6 @@ package com.wire.bots.channels;
 
 import com.waz.model.Messages;
 import com.wire.bots.channels.model.Channel;
-import com.wire.bots.channels.model.Config;
 import com.wire.bots.channels.model.Message;
 import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.Logger;
@@ -33,20 +32,12 @@ import com.wire.bots.sdk.server.model.NewBot;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.TimeUnit;
 
 abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
-    protected final Timer timer;
-    protected final Config config;
     protected final Broadcaster broadcaster;
 
-    protected ChannelsMessageHandlerBase(ClientRepo repo, Config config) {
-        this.config = config;
-
+    protected ChannelsMessageHandlerBase(ClientRepo repo) {
         broadcaster = new Broadcaster(repo);
-        timer = new Timer();
     }
 
     abstract protected void broadcast(Channel channel, TextMessage msg) throws Exception;
@@ -81,9 +72,7 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
                     broadcast(channel, msg);
                 }
             } else {
-                saveMessage(botId, msg);
-
-                //likeMessage(client, msg.getMessageId());
+                saveMessage(botId, msg, channel.name);
 
                 if (!channel.muted)
                     onNewFeedback(channel, msg);
@@ -103,9 +92,7 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
                 byte[] bytes = client.downloadAsset(msg.getAssetKey(), msg.getAssetToken(), msg.getSha256(), msg.getOtrKey());
                 broadcast(channel, msg, bytes);
             } else {
-                saveMessage(botId, msg);
-
-                //likeMessage(client, msg.getMessageId());
+                saveMessage(botId, msg, channel.name);
 
                 if (!channel.muted)
                     onNewFeedback(channel, msg);
@@ -155,7 +142,7 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
         try {
             Channel channel = getChannel(client.getId());
             if (!channel.muted)
-                broadcaster.sendOnMemberFeedback(channel.name, "**%s** joined", userIds);
+                broadcaster.sendOnMemberFeedback(channel.admin, "**%s** joined", userIds);
         } catch (SQLException e) {
             Logger.error(e.getMessage());
         }
@@ -166,7 +153,7 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
         try {
             Channel channel = getChannel(client.getId());
             if (!channel.muted)
-                broadcaster.sendOnMemberFeedback(channel.name, "**%s** left", userIds);
+                broadcaster.sendOnMemberFeedback(channel.admin, "**%s** left", userIds);
         } catch (SQLException e) {
             Logger.error(e.getMessage());
         }
@@ -194,23 +181,10 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
         ArrayList<String> userIds = new ArrayList<>();
         userIds.add(userId);
         if (!channel.muted)
-            broadcaster.sendOnMemberFeedback(channel.name, "**%s** liked", userIds);
+            broadcaster.sendOnMemberFeedback(channel.admin, "**%s** liked", userIds);
     }
 
-    private void likeMessage(final WireClient client, final String messageId) {
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                try {
-                    client.sendReaction(messageId, "❤️");
-                } catch (Exception e) {
-                    Logger.error(e.getLocalizedMessage());
-                }
-            }
-        }, TimeUnit.SECONDS.toMillis(5));
-    }
-
-    private void saveMessage(String botId, ImageMessage msg) throws SQLException {
+    private void saveMessage(String botId, ImageMessage msg, String channel) throws SQLException {
         try {
             Message m = new Message();
             m.setBotId(botId);
@@ -222,19 +196,22 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
             m.setSize(msg.getSize());
             m.setTime(new Date().getTime() / 1000);
             m.setMimeType(msg.getMimeType());
+            m.setChannel(channel);
+
             Service.dbManager.insertMessage(m);
         } catch (SQLException e) {
             Logger.error(e.getLocalizedMessage());
         }
     }
 
-    private void saveMessage(String botId, TextMessage msg) {
+    private void saveMessage(String botId, TextMessage msg, String channel) {
         try {
             Message m = new Message();
             m.setBotId(botId);
             m.setUserId(msg.getUserId());
             m.setText(msg.getText());
             m.setMimeType("text");
+            m.setChannel(channel);
             Service.dbManager.insertMessage(m);
         } catch (SQLException e) {
             Logger.error(e.getLocalizedMessage());
@@ -268,7 +245,19 @@ abstract class ChannelsMessageHandlerBase extends MessageHandlerBase {
             client.sendText("Resumed. Type `/mute` to mute");
         }
         if (text.equalsIgnoreCase("/stats")) {
-            client.sendText("Looking great :p");
+            int subscribers = Service.dbManager.getSubscribers(channelName).size();
+            int posts = Service.dbManager.getBroadcasts(channelName).size();
+            int messages = Service.dbManager.getMessages(channelName).size();
+
+            String msg = String.format("```\n" +
+                            "Subscribers: %,d\n" +
+                            "Messages:    %,d\n" +
+                            "Posts:       %,d\n" +
+                            "```",
+                    subscribers,
+                    messages,
+                    posts);
+            client.sendText(msg);
         }
         return ret;
     }

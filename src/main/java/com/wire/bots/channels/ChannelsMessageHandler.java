@@ -1,7 +1,6 @@
 package com.wire.bots.channels;
 
 import com.wire.bots.channels.model.Channel;
-import com.wire.bots.channels.model.Config;
 import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.Logger;
 import com.wire.bots.sdk.models.ImageMessage;
@@ -10,13 +9,13 @@ import com.wire.bots.sdk.server.model.NewBot;
 import com.wire.bots.sdk.server.model.User;
 
 public class ChannelsMessageHandler extends ChannelsMessageHandlerBase {
-    public ChannelsMessageHandler(ClientRepo repo, Config config) {
-        super(repo, config);
+    public ChannelsMessageHandler(ClientRepo repo) {
+        super(repo);
     }
 
     @Override
     protected void broadcast(Channel channel, TextMessage msg) throws Exception {
-        broadcaster.broadcast(channel.name, msg);
+        broadcaster.broadcast(channel, msg);
     }
 
     @Override
@@ -34,16 +33,16 @@ public class ChannelsMessageHandler extends ChannelsMessageHandlerBase {
                 newBot.locale));
 
         if (!channel.muted)
-            broadcaster.newUserFeedback(channel.name, origin.name);
+            broadcaster.newUserFeedback(channel.admin, origin.name);
     }
 
     @Override
     protected void onNewFeedback(Channel channel, TextMessage msg) throws Exception {
-        broadcaster.forwardFeedback(channel.name, msg);
+        broadcaster.forwardFeedback(channel.admin, msg);
     }
 
     @Override
     protected void onNewFeedback(Channel channel, ImageMessage msg) throws Exception {
-        broadcaster.forwardFeedback(channel.name, msg);
+        broadcaster.forwardFeedback(channel.admin, msg);
     }
 }

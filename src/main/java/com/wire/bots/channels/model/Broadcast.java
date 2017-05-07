@@ -31,6 +31,7 @@ public class Broadcast {
     private String title;
     private byte[] assetData;
     private String messageId;
+    private String channel;
 
     public void setId(int id) {
         this.id = id;
@@ -134,5 +135,13 @@ public class Broadcast {
 
     public String getMessageId() {
         return messageId;
+    }
+
+    public void setChannel(String channel) {
+        this.channel = channel;
+    }
+
+    public String getChannel() {
+        return channel;
     }
 }
