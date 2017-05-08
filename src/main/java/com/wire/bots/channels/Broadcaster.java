@@ -94,23 +94,26 @@ public class Broadcaster {
         final String botId = client.getId();
         String channelName = Service.dbManager.getChannelName(botId);
         int last = Service.dbManager.getLast(botId);
-        ArrayList<Broadcast> broadcasts = Service.dbManager.getBroadcasts(channelName, last, 10);
+        final ArrayList<Broadcast> broadcasts = Service.dbManager.getBroadcasts(channelName, last, 10);
+        if (!broadcasts.isEmpty()) {
+            Service.dbManager.updateBot(botId, "Last", broadcasts.get(broadcasts.size() - 1).getId());
+        }
 
-        for (final Broadcast b : broadcasts) {
-            executor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    if (b.getText() != null) {
-                        try {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    for (final Broadcast b : broadcasts) {
+                        if (b.getText() != null) {
                             client.sendText(b.getText());
-                            Service.dbManager.updateBot(botId, "Last", b.getId());
-                        } catch (Exception e) {
-                            Logger.warning(e.getLocalizedMessage());
+                            Thread.sleep(1500);
                         }
                     }
+                } catch (Exception e) {
+                    Logger.warning(e.getLocalizedMessage());
                 }
-            });
-        }
+            }
+        });
     }
 
     private void broadcastText(String channelName, final String messageId, final String text) throws SQLException {

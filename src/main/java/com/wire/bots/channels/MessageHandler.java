@@ -46,16 +46,22 @@ class MessageHandler extends MessageHandlerBase {
     @Override
     public boolean onNewBot(NewBot newBot) {
         try {
-            Channel channel = getChannel(newBot.id);
+            String botId = newBot.id;
+            Channel channel = getChannel(botId);
             User origin = newBot.origin;
-            Logger.info(String.format("onNewSubscriber: channel: %s, origin: %s, '%s' locale: %s",
+            Logger.info("onNewSubscriber: channel: %s, bot: %s, origin: %s, %s",
                     channel.name,
+                    botId,
                     origin.id,
-                    origin.name,
-                    newBot.locale));
+                    origin.name
+            );
 
-            if (!channel.muted)
+            int id = Service.dbManager.getLastBroadcast(channel.name);
+            Service.dbManager.updateBot(botId, "Last", id);
+
+            if (!channel.muted) {
                 broadcaster.sendToAdminConv(channel.admin, origin.name);
+            }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
         }
@@ -89,7 +95,7 @@ class MessageHandler extends MessageHandlerBase {
             }
 
             String label = channel.introText != null ? channel.introText : String.format("This is **%s** channel", channel.name);
-            client.sendText(label);
+            client.sendText(label + "\n`Type: /help`");
         } catch (Exception e) {
             Logger.error(e.getMessage());
         }
@@ -316,6 +322,7 @@ class MessageHandler extends MessageHandlerBase {
             default: {
                 if (cmd.startsWith("/")) {
                     client.sendText("Unknown command: `" + cmd + "`");
+                    return true;
                 }
                 return false;
             }

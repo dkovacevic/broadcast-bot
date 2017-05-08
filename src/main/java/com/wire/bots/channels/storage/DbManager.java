@@ -175,7 +175,7 @@ public class DbManager {
         ArrayList<Broadcast> ret = new ArrayList<>();
         try (Connection connection = getConnection()) {
             PreparedStatement stm = connection.prepareStatement(
-                    "SELECT * FROM Broadcast WHERE Channel = ? and Id <= ? ORDER BY Id DESC LIMIT ?");
+                    "SELECT * FROM Broadcast WHERE Channel = ? and Id < ? ORDER BY Id DESC LIMIT ?");
             stm.setString(1, channel);
             stm.setInt(2, from);
             stm.setInt(3, limit);
@@ -201,6 +201,20 @@ public class DbManager {
             }
         }
         return ret;
+    }
+
+    public int getLastBroadcast(String channel) throws SQLException {
+        try (Connection connection = getConnection()) {
+            PreparedStatement stm = connection.prepareStatement(
+                    "SELECT MAX(Id) as Last FROM Broadcast WHERE Channel = ?");
+            stm.setString(1, channel);
+
+            ResultSet rs = stm.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("Last");
+            }
+        }
+        return Integer.MAX_VALUE;
     }
 
     public int deleteBroadcast(String messageId) throws SQLException {
