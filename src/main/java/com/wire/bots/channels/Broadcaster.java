@@ -90,19 +90,55 @@ public class Broadcaster {
         }
     }
 
-    public void broadcastText(String channelName, final String messageId, final String text) throws SQLException {
+    public void followBack(final WireClient client) throws SQLException {
+        final String botId = client.getId();
+        String channelName = Service.dbManager.getChannelName(botId);
+        int last = Service.dbManager.getLast(botId);
+        ArrayList<Broadcast> broadcasts = Service.dbManager.getBroadcasts(channelName, last, 10);
+
+        for (final Broadcast b : broadcasts) {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    if (b.getText() != null) {
+                        try {
+                            client.sendText(b.getText());
+                            Service.dbManager.updateBot(botId, "Last", b.getId());
+                        } catch (Exception e) {
+                            Logger.warning(e.getLocalizedMessage());
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    private void broadcastText(String channelName, final String messageId, final String text) throws SQLException {
         Broadcast b = new Broadcast();
         b.setMessageId(messageId);
         b.setText(text);
         b.setChannel(channelName);
 
-        Service.dbManager.insertBroadcast(b);
+        int id = Service.dbManager.insertBroadcast(b);
 
         for (final String botId : getSubscribers(channelName)) {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
                     sendText(messageId, text, botId);
+                }
+            });
+        }
+    }
+
+    private void broadcastPicture(String channelName, final Picture picture) throws SQLException {
+        saveBroadcast(null, null, picture, channelName);
+
+        for (final String botId : getSubscribers(channelName)) {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    sendPicture(picture, botId);
                 }
             });
         }
@@ -121,7 +157,7 @@ public class Broadcaster {
         }
     }
 
-    public void forwardFeedback(String adminBot, TextMessage msg) throws Exception {
+    public void sendToAdminConv(String adminBot, TextMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
         ArrayList<String> ids = new ArrayList<>();
         ids.add(msg.getUserId());
@@ -131,7 +167,7 @@ public class Broadcaster {
         }
     }
 
-    public void forwardFeedback(String adminBot, ImageMessage msg) throws Exception {
+    public void sendToAdminConv(String adminBot, ImageMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
         ArrayList<String> ids = new ArrayList<>();
         ids.add(msg.getUserId());
@@ -153,7 +189,7 @@ public class Broadcaster {
         }
     }
 
-    public void sendOnMemberFeedback(String adminBot, String format, ArrayList<String> userIds) {
+    public void sendToAdminConv(String adminBot, String format, ArrayList<String> userIds) {
         try {
             WireClient adminClient = repo.getWireClient(adminBot);
             for (User user : adminClient.getUsers(userIds)) {
@@ -165,24 +201,11 @@ public class Broadcaster {
         }
     }
 
-    public void newUserFeedback(String adminBot, String userName) throws Exception {
+    public void sendToAdminConv(String adminBot, String userName) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
 
         String feedback = String.format("**%s** just joined", userName);
         adminClient.sendText(feedback);
-    }
-
-    private void broadcastPicture(String channelName, final Picture picture) throws SQLException {
-        saveBroadcast(null, null, picture, channelName);
-
-        for (final String botId : getSubscribers(channelName)) {
-            executor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    sendPicture(picture, botId);
-                }
-            });
-        }
     }
 
     private void saveBroadcast(String url, String title, Picture picture, String channel) {

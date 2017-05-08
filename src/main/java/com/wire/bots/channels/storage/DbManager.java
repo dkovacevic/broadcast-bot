@@ -42,34 +42,36 @@ public class DbManager {
             Statement stm = connection.createStatement();
 
             stm.executeUpdate("CREATE TABLE IF NOT EXISTS Message " +
-                    "(Id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                    " BotId STRING," +
-                    " Channel STRING," +
-                    " UserId STRING," +
-                    " Text STRING," +
-                    " Asset_key STRING," +
-                    " Token STRING," +
-                    " Otr_key BLOB," +
-                    " Mime_type STRING," +
-                    " Size INTEGER," +
-                    " Sha256 BLOB," +
-                    " Time INTEGER)");
+                            "(Id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                            " BotId STRING NOT NULL," +
+                            " Channel STRING NOT NULL," +
+                            " UserId STRING NOT NULL," +
+                            " Text STRING," +
+                            " Asset_key STRING," +
+                            " Token STRING," +
+                            " Otr_key BLOB," +
+                            " Mime_type STRING NOT NULL," +
+                            " Size INTEGER," +
+                            " Sha256 BLOB," +
+                            " Time INTEGER)"
+            );
 
             stm.executeUpdate("CREATE TABLE IF NOT EXISTS Broadcast " +
-                    "(Id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                    " Channel STRING," +
-                    " Text STRING," +
-                    " Asset BLOB," +
-                    " Url STRING," +
-                    " Title STRING," +
-                    " Asset_key STRING," +
-                    " MessageId STRING" +
-                    " Token STRING," +
-                    " Otr_key BLOB," +
-                    " Mime_type STRING," +
-                    " Size INTEGER," +
-                    " Sha256 BLOB," +
-                    " Time INTEGER)");
+                            "(Id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                            " Channel STRING NOT NULL," +
+                            " Text STRING," +
+                            " Asset BLOB," +
+                            " Url STRING," +
+                            " Title STRING," +
+                            " Asset_key STRING," +
+                            " MessageId STRING NOT NULL," +
+                            " Token STRING," +
+                            " Otr_key BLOB," +
+                            " Mime_type STRING NOT NULL," +
+                            " Size INTEGER," +
+                            " Sha256 BLOB," +
+                            " Time INTEGER)"
+            );
 
             stm.executeUpdate("CREATE TABLE IF NOT EXISTS Channel " +
                             "(Name STRING PRIMARY KEY NOT NULL," +
@@ -86,7 +88,9 @@ public class DbManager {
                             "Origin STRING NOT NULL, " +
                             "UserName STRING NOT NULL, " +
                             "Conversation STRING NOT NULL, " +
-                            "Channel STRING NOT NULL)"
+                            "Channel STRING NOT NULL, " +
+                            "Last INTEGER DEFAULT 64000, " +
+                            "Muted INTEGER DEFAULT 0)"
             );
         } catch (Exception e) {
             e.printStackTrace();
@@ -159,15 +163,23 @@ public class DbManager {
             stm.setString(12, broadcast.getMessageId());
             stm.setString(13, broadcast.getChannel());
 
-            return stm.executeUpdate();
+            stm.executeUpdate();
+
+            ResultSet generatedKeys = stm.getGeneratedKeys();
+            generatedKeys.next();
+            return generatedKeys.getInt("last_insert_rowid()");
         }
     }
 
-    public ArrayList<Broadcast> getBroadcasts(String channel) throws SQLException {
+    public ArrayList<Broadcast> getBroadcasts(String channel, int from, int limit) throws SQLException {
         ArrayList<Broadcast> ret = new ArrayList<>();
         try (Connection connection = getConnection()) {
-            PreparedStatement stm = connection.prepareStatement("SELECT * FROM Broadcast WHERE Channel = ?");
+            PreparedStatement stm = connection.prepareStatement(
+                    "SELECT * FROM Broadcast WHERE Channel = ? and Id <= ? ORDER BY Id DESC LIMIT ?");
             stm.setString(1, channel);
+            stm.setInt(2, from);
+            stm.setInt(3, limit);
+
             ResultSet rs = stm.executeQuery();
             while (rs.next()) {
                 Broadcast b = new Broadcast();
@@ -200,7 +212,7 @@ public class DbManager {
         }
     }
 
-    public void insertNewBot(String botId, String channel, String user, String origin, String conv) throws SQLException {
+    public void insertBot(String botId, String channel, String user, String origin, String conv) throws SQLException {
         try (Connection connection = getConnection()) {
             String cmd = "INSERT INTO Bots " +
                     "(BotId, Channel, UserName, Origin, Conversation) " +
@@ -215,10 +227,23 @@ public class DbManager {
         }
     }
 
+    public void updateBot(String botId, String param, int value) throws SQLException {
+        try (Connection connection = getConnection()) {
+            String cmd = String.format("UPDATE Bots " +
+                    "SET %s = ? " +
+                    "WHERE BotId = ?", param);
+            PreparedStatement stm = connection.prepareStatement(cmd);
+            stm.setInt(1, value);
+            stm.setString(2, botId);
+            stm.executeUpdate();
+        }
+    }
+
     public ArrayList<String> getSubscribers(String channelName) throws SQLException {
         ArrayList<String> ret = new ArrayList<>();
         try (Connection conn = getConnection()) {
-            PreparedStatement stm = conn.prepareStatement("SELECT BotId FROM Bots WHERE Channel = ?");
+            PreparedStatement stm = conn.prepareStatement("SELECT BotId FROM Bots " +
+                    "WHERE Channel = ? AND (Muted <> 1 OR Muted IS NULL)");
             stm.setString(1, channelName);
             ResultSet rs = stm.executeQuery();
             while (rs.next()) {
@@ -226,6 +251,18 @@ public class DbManager {
                 ret.add(botId);
             }
             return ret;
+        }
+    }
+
+    public int getLast(String botId) throws SQLException {
+        try (Connection conn = getConnection()) {
+            PreparedStatement stm = conn.prepareStatement("SELECT Last FROM Bots WHERE botId = ?");
+            stm.setString(1, botId);
+            ResultSet rs = stm.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("Last");
+            }
+            return Integer.MAX_VALUE;
         }
     }
 

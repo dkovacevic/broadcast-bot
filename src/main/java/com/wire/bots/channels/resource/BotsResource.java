@@ -66,7 +66,7 @@ public class BotsResource {
 
         Logger.info("New Bot: %s for the Channel: %s, Origin: %s", newBot.id, channelName, newBot.origin.handle);
 
-        Service.dbManager.insertNewBot(newBot.id, channelName, newBot.origin.name, newBot.origin.id, newBot.conversation.id);
+        Service.dbManager.insertBot(newBot.id, channelName, newBot.origin.name, newBot.origin.id, newBot.conversation.id);
 
         if (newBot.origin.id.equals(channel.origin) && channel.admin == null) {
             Logger.info("Setting admin conv %s for the channel: %s", newBot.id, channelName);
