@@ -106,8 +106,22 @@ public class Broadcaster {
                     for (final Broadcast b : broadcasts) {
                         if (b.getText() != null) {
                             client.sendText(b.getText());
-                            Thread.sleep(1500);
+                        } else if (b.getUrl() != null) {
+                            Picture preview = new Picture(b.getAssetData());
+                            preview.setAssetKey(b.getAssetKey());
+                            preview.setAssetToken(b.getToken());
+                            preview.setOtrKey(b.getOtrKey());
+                            preview.setSha256(b.getSha256());
+                            client.sendLinkPreview(b.getUrl(), b.getTitle(), preview);
+                        } else if (b.getAssetData() != null) {
+                            Picture picture = new Picture(b.getAssetData());
+                            picture.setAssetKey(b.getAssetKey());
+                            picture.setAssetToken(b.getToken());
+                            picture.setOtrKey(b.getOtrKey());
+                            picture.setSha256(b.getSha256());
+                            client.sendPicture(picture);
                         }
+                        Thread.sleep(1500);
                     }
                 } catch (Exception e) {
                     Logger.warning(e.getLocalizedMessage());

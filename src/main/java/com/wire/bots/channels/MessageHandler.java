@@ -57,7 +57,7 @@ class MessageHandler extends MessageHandlerBase {
             );
 
             int id = Service.dbManager.getLastBroadcast(channel.name);
-            Service.dbManager.updateBot(botId, "Last", id);
+            Service.dbManager.updateBot(botId, "Last", ++id);
 
             if (!channel.muted) {
                 broadcaster.sendToAdminConv(channel.admin, origin.name);
@@ -299,13 +299,13 @@ class MessageHandler extends MessageHandlerBase {
         switch (cmd) {
             case "/help": {
                 String h = "List of available commands:\n" +
-                        "`/previous` Show previous posts from this Channel\n" +
-                        "`/mute`     Mute all new posts\n" +
-                        "`/unmute`   Resume posts in this channel";
+                        "`/prev`   Show 10 previous posts from this Channel\n" +
+                        "`/mute`   Mute all new posts\n" +
+                        "`/unmute` Resume posts in this channel";
                 client.sendText(h);
                 return true;
             }
-            case "/previous": {
+            case "/prev": {
                 broadcaster.followBack(client);
                 return true;
             }
