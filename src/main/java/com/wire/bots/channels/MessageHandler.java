@@ -29,6 +29,7 @@ import com.wire.bots.sdk.assets.Picture;
 import com.wire.bots.sdk.models.AssetKey;
 import com.wire.bots.sdk.models.ImageMessage;
 import com.wire.bots.sdk.models.TextMessage;
+import com.wire.bots.sdk.server.model.Member;
 import com.wire.bots.sdk.server.model.NewBot;
 import com.wire.bots.sdk.server.model.User;
 
@@ -55,6 +56,15 @@ class MessageHandler extends MessageHandlerBase {
                     origin.id,
                     origin.name
             );
+
+            for (Member member : newBot.conversation.members) {
+                if (member.service != null) {
+                    Logger.warning("Rejecting NewBot. Provider: %s service: %s",
+                            member.service.provider,
+                            member.service.id);
+                    return false; // we don't want to be in a conv if other bots are there.
+                }
+            }
 
             int id = Service.dbManager.getLastBroadcast(channel.name);
             Service.dbManager.updateBot(botId, "Last", ++id);
