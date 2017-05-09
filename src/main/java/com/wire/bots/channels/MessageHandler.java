@@ -78,7 +78,7 @@ class MessageHandler extends MessageHandlerBase {
                                 "\nYou should rename this conversation to something like: `Admin %s`." +
                                 "\nUse this conversation to broadcast. Don't leave or delete it!" +
                                 "\nOthers can subscribe to this channel by clicking on: wire.com/b/%s" +
-                                "\nType: /help",
+                                "\n`Type: /help`",
                         channel.name,
                         channel.name,
                         channel.name);
@@ -299,14 +299,14 @@ class MessageHandler extends MessageHandlerBase {
         switch (cmd) {
             case "/help": {
                 String h = "List of available commands:\n" +
-                        "`/prev`   Show 10 previous posts from this Channel\n" +
+                        "`/prev`   Show 5 previous posts\n" +
                         "`/mute`   Mute all new posts\n" +
                         "`/unmute` Resume posts in this channel";
                 client.sendText(h);
                 return true;
             }
             case "/prev": {
-                broadcaster.followBack(client);
+                broadcaster.followBack(client, 5);
                 return true;
             }
             case "/mute": {

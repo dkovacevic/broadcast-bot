@@ -36,6 +36,8 @@ import org.jsoup.select.Elements;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
@@ -90,13 +92,22 @@ public class Broadcaster {
         }
     }
 
-    public void followBack(final WireClient client) throws SQLException {
+    public void followBack(final WireClient client, int limit) throws SQLException {
         final String botId = client.getId();
         String channelName = Service.dbManager.getChannelName(botId);
         int last = Service.dbManager.getLast(botId);
-        final ArrayList<Broadcast> broadcasts = Service.dbManager.getBroadcasts(channelName, last, 10);
+        final ArrayList<Broadcast> broadcasts = Service.dbManager.getBroadcasts(channelName, last, limit);
+        Collections.sort(broadcasts, new Comparator<Broadcast>() {
+            @Override
+            public int compare(Broadcast b1, Broadcast b2) {
+                if (b1.getId() < b2.getId()) return -1;
+                if (b1.getId() > b2.getId()) return 1;
+                return 0;
+            }
+        });
+
         if (!broadcasts.isEmpty()) {
-            Service.dbManager.updateBot(botId, "Last", broadcasts.get(broadcasts.size() - 1).getId());
+            Service.dbManager.updateBot(botId, "Last", broadcasts.get(0).getId());
         }
 
         executor.execute(new Runnable() {
