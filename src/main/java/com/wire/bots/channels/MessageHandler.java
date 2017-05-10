@@ -36,6 +36,7 @@ import com.wire.bots.sdk.server.model.User;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 class MessageHandler extends MessageHandlerBase {
     protected final Broadcaster broadcaster;
@@ -191,10 +192,11 @@ class MessageHandler extends MessageHandlerBase {
             if (!channel.muted)
                 broadcaster.sendToAdminConv(channel.admin, "**%s** left", userIds);
 
-            for (String userId : userIds) {
-                Service.storage.removeSubscriber(botId, userId);
-            }
-        } catch (SQLException e) {
+            // Delete the channel if there are no more members
+            List<Member> members = client.getConversation().members;
+            if (members.isEmpty())
+                Service.storage.removeSubscriber(botId);
+        } catch (Exception e) {
             Logger.error(e.getMessage());
         }
     }
