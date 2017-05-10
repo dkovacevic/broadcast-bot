@@ -24,6 +24,7 @@ import com.wire.bots.channels.model.Config;
 import com.wire.bots.sdk.*;
 import com.wire.bots.sdk.server.model.NewBot;
 import com.wire.bots.sdk.server.model.NewBotResponseModel;
+import com.wire.bots.sdk.server.model.User;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
@@ -49,7 +50,11 @@ public class BotsResource {
                            @PathParam("name") String channelName,
                            NewBot newBot) throws Exception {
 
-        Channel channel = Service.dbManager.getChannel(channelName);
+        //todo: hack - remove once BE adds handles
+        newBot.origin.handle = newBot.origin.name.toLowerCase();
+        // hack
+
+        Channel channel = Service.storage.getChannel(channelName);
         if (channel == null) {
             Logger.warning("Unknown channel: %s.", channelName);
             return Response.
@@ -64,13 +69,19 @@ public class BotsResource {
                     build();
         }
 
-        Logger.info("New Bot: %s for the Channel: %s, Origin: %s", newBot.id, channelName, newBot.origin.handle);
+        User origin = newBot.origin;
+        Logger.info("New Bot: %s for the Channel: %s, Origin: %s", newBot.id, channelName, origin.handle);
 
-        Service.dbManager.insertBot(newBot.id, channelName, newBot.origin.name, newBot.origin.id, newBot.conversation.id);
+        Service.storage.insertBot(channelName,
+                newBot.id,
+                origin.id,
+                origin.handle,
+                origin.name,
+                newBot.conversation.id);
 
-        if (newBot.origin.id.equals(channel.origin) && channel.admin == null) {
+        if (origin.id.equals(channel.origin) && channel.admin == null) {
             Logger.info("Setting admin conv %s for the channel: %s", newBot.id, channelName);
-            Service.dbManager.updateChannel(channelName, "Admin", newBot.id);
+            Service.storage.updateChannel(channelName, "Admin", newBot.id);
         } else if (!handler.onNewBot(newBot)) {
             return Response.
                     status(409).

@@ -37,7 +37,7 @@ public class AdminResource {
                 admin.getToken());
 
         try {
-            Service.dbManager.insertChannel(channelName, admin.token, admin.origin);
+            Service.storage.insertChannel(channelName, admin.token, admin.origin);
         } catch (SQLException e) {
             Logger.warning(e.getMessage());
             return Response.
@@ -69,7 +69,7 @@ public class AdminResource {
                 admin.getOrigin(),
                 admin.getToken());
 
-        Channel channel = Service.dbManager.getChannel(channelName);
+        Channel channel = Service.storage.getChannel(channelName);
         if (channel == null) {
             Logger.warning("Channel does not exist");
             return Response.
@@ -86,9 +86,9 @@ public class AdminResource {
                     build();
         }
 
-        Service.dbManager.deleteChannel(channelName);
+        Service.storage.deleteChannel(channelName);
 
-        Service.dbManager.deleteBots(channelName);
+        Service.storage.deleteBots(channelName);
 
         return Response.
                 ok("Channel deleted").

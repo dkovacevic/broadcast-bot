@@ -24,7 +24,7 @@ public class MessageResource extends MessageResourceBase {
                                @PathParam("bot") String bot,
                                InboundMessage inbound) throws Exception {
 
-        Channel channel = Service.dbManager.getChannel(channelName);
+        Channel channel = Service.storage.getChannel(channelName);
         if (channel == null) {
             Logger.warning("Unknown channel: %s.", channelName);
             return Response.

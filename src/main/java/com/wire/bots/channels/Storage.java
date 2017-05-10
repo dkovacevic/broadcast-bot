@@ -15,21 +15,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see http://www.gnu.org/licenses/.
 //
-package com.wire.bots.channels.storage;
+package com.wire.bots.channels;
 
 import com.wire.bots.channels.model.Broadcast;
 import com.wire.bots.channels.model.Channel;
 import com.wire.bots.channels.model.Message;
+import com.wire.bots.channels.model.Subscriber;
 import com.wire.bots.sdk.Logger;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Date;
 
-public class DbManager {
+public class Storage {
+    public enum State {
+        WHITE,
+        BLACK
+    }
+
     private final String path;
 
-    public DbManager(String path) {
+    public Storage(String path) {
         this.path = path;
 
         try {
@@ -74,7 +80,7 @@ public class DbManager {
             );
 
             stm.executeUpdate("CREATE TABLE IF NOT EXISTS Channel " +
-                            "(Name STRING PRIMARY KEY NOT NULL," +
+                            "(Name STRING NOT NULL PRIMARY KEY," +
                             " Welcome STRING," +
                             " Intro STRING," +
                             " Admin STRING," +
@@ -84,14 +90,24 @@ public class DbManager {
             );
 
             stm.executeUpdate("CREATE TABLE IF NOT EXISTS Bots " +
-                            "(BotId STRING PRIMARY KEY, " +
+                            "(BotId STRING NOT NULL PRIMARY KEY, " +
                             "Origin STRING NOT NULL, " +
+                            "Handle STRING NOT NULL, " +
                             "UserName STRING NOT NULL, " +
                             "Conversation STRING NOT NULL, " +
                             "Channel STRING NOT NULL, " +
                             "Last INTEGER DEFAULT 64000, " +
                             "Muted INTEGER DEFAULT 0)"
             );
+
+            stm.executeUpdate("CREATE TABLE IF NOT EXISTS Whitelist " +
+                            "(Channel STRING NOT NULL, " +
+                            "Handle STRING NOT NULL, " +
+                            "State INTEGER NOT NULL, " +
+                            "PRIMARY KEY (Channel, Handle)" +
+                            ")"
+            );
+
         } catch (Exception e) {
             e.printStackTrace();
             Logger.error(e.getLocalizedMessage());
@@ -226,17 +242,18 @@ public class DbManager {
         }
     }
 
-    public void insertBot(String botId, String channel, String user, String origin, String conv) throws SQLException {
+    public void insertBot(String channel, String botId, String origin, String handle, String name, String conv) throws SQLException {
         try (Connection connection = getConnection()) {
             String cmd = "INSERT INTO Bots " +
-                    "(BotId, Channel, UserName, Origin, Conversation) " +
-                    "VALUES(?, ?, ?, ?, ?)";
+                    "(BotId, Channel, UserName, Origin, Conversation, Handle) " +
+                    "VALUES(?, ?, ?, ?, ?, ?)";
             PreparedStatement stm = connection.prepareStatement(cmd);
             stm.setString(1, botId);
             stm.setString(2, channel);
-            stm.setString(3, user);
+            stm.setString(3, name);
             stm.setString(4, origin);
             stm.setString(5, conv);
+            stm.setString(6, handle);
             stm.executeUpdate();
         }
     }
@@ -253,16 +270,20 @@ public class DbManager {
         }
     }
 
-    public ArrayList<String> getSubscribers(String channelName) throws SQLException {
-        ArrayList<String> ret = new ArrayList<>();
+    public ArrayList<Subscriber> getSubscribers(String channelName) throws SQLException {
+        ArrayList<Subscriber> ret = new ArrayList<>();
         try (Connection conn = getConnection()) {
-            PreparedStatement stm = conn.prepareStatement("SELECT BotId FROM Bots " +
+            PreparedStatement stm = conn.prepareStatement("SELECT * FROM Bots " +
                     "WHERE Channel = ? AND (Muted <> 1 OR Muted IS NULL)");
             stm.setString(1, channelName);
             ResultSet rs = stm.executeQuery();
             while (rs.next()) {
-                String botId = rs.getString("BotId");
-                ret.add(botId);
+                Subscriber s = new Subscriber();
+                s.botId = rs.getString("BotId");
+                s.handle = rs.getString("Handle");
+                s.name = rs.getString("UserName");
+                s.userId = rs.getString("Origin");
+                ret.add(s);
             }
             return ret;
         }
@@ -290,7 +311,6 @@ public class DbManager {
             stm.setString(2, token);
             stm.setString(3, origin);
             stm.setString(4, String.format("This is **%s** channel", channelName));
-
             stm.executeUpdate();
         }
     }
@@ -376,6 +396,52 @@ public class DbManager {
             PreparedStatement stm = conn.prepareStatement("DELETE from Bots WHERE Channel = ?");
             stm.setString(1, channelName);
             return stm.execute();
+        }
+    }
+
+    public int insertWhitelist(String channelName, String handle, State state) throws SQLException {
+        try (Connection connection = getConnection()) {
+            String cmd = "REPLACE INTO Whitelist " +
+                    "(Channel, Handle, State) " +
+                    "VALUES(?, ?, ?)";
+            PreparedStatement stm = connection.prepareStatement(cmd);
+            stm.setString(1, channelName);
+            stm.setString(2, handle);
+            stm.setInt(3, state.ordinal());
+
+            return stm.executeUpdate();
+        }
+    }
+
+    public ArrayList<String> getWhitelist(String channelName, State state) throws SQLException {
+        ArrayList<String> ret = new ArrayList<>();
+        try (Connection conn = getConnection()) {
+            PreparedStatement stm = conn.prepareStatement(
+                    "SELECT Handle FROM Whitelist " +
+                            "WHERE Channel = ? AND State = ?");
+            stm.setString(1, channelName);
+            stm.setInt(2, state.ordinal());
+            ResultSet rs = stm.executeQuery();
+            while (rs.next()) {
+                ret.add(rs.getString("Handle"));
+            }
+            return ret;
+        }
+    }
+
+    /**
+     * Empty White List and Black List.
+     * @param channelName Channel name
+     * @return number of rows deleted
+     * @throws SQLException
+     */
+    public int clearWhitelist(String channelName) throws SQLException {
+        try (Connection connection = getConnection()) {
+            PreparedStatement stm = connection.prepareStatement(
+                    "DELETE FROM Whitelist " +
+                            "WHERE Channel = ?");
+            stm.setString(1, channelName);
+            return stm.executeUpdate();
         }
     }
 }

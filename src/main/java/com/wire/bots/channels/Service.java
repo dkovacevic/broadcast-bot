@@ -22,13 +22,12 @@ import com.wire.bots.channels.model.Config;
 import com.wire.bots.channels.resource.AdminResource;
 import com.wire.bots.channels.resource.BotsResource;
 import com.wire.bots.channels.resource.MessageResource;
-import com.wire.bots.channels.storage.DbManager;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.Server;
 import io.dropwizard.setup.Environment;
 
 public class Service extends Server<Config> {
-    public static DbManager dbManager;
+    public static Storage storage;
 
     public static void main(String[] args) throws Exception {
         new Service().run(args);
@@ -42,7 +41,7 @@ public class Service extends Server<Config> {
     @Override
     protected void onRun(Config config, Environment env) {
         addResource(new AdminResource(config), env);
-        dbManager = new DbManager(config.getDatabase());
+        storage = new Storage(config.getDatabase());
     }
 
     @Override

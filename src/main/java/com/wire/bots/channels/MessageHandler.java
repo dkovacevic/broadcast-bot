@@ -50,12 +50,18 @@ class MessageHandler extends MessageHandlerBase {
             String botId = newBot.id;
             Channel channel = getChannel(botId);
             User origin = newBot.origin;
-            Logger.info("onNewSubscriber: channel: %s, bot: %s, origin: %s, %s",
-                    channel.name,
-                    botId,
-                    origin.id,
-                    origin.name
-            );
+
+            ArrayList<String> whitelist = Service.storage.getWhitelist(channel.name, Storage.State.WHITE);
+            if (!whitelist.isEmpty() && !whitelist.contains(origin.handle)) {
+                Logger.warning("Rejecting NewBot. Not White Listed: %s", origin.handle);
+                return false;
+            }
+
+            ArrayList<String> blacklist = Service.storage.getWhitelist(channel.name, Storage.State.BLACK);
+            if (!blacklist.isEmpty() && blacklist.contains(origin.handle)) {
+                Logger.warning("Rejecting NewBot. Black Listed: %s", origin.handle);
+                return false;
+            }
 
             for (Member member : newBot.conversation.members) {
                 if (member.service != null) {
@@ -66,14 +72,15 @@ class MessageHandler extends MessageHandlerBase {
                 }
             }
 
-            int id = Service.dbManager.getLastBroadcast(channel.name);
-            Service.dbManager.updateBot(botId, "Last", ++id);
+            int id = Service.storage.getLastBroadcast(channel.name);
+            Service.storage.updateBot(botId, "Last", ++id);
 
             if (!channel.muted) {
                 broadcaster.sendToAdminConv(channel.admin, origin.name);
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
+            return false;
         }
         return true;
     }
@@ -118,7 +125,7 @@ class MessageHandler extends MessageHandlerBase {
             Channel channel = getChannel(botId);
 
             if (botId.equals(channel.admin)) {
-                if (!processAdminCmd(channel.name, msg.getText(), client)) {
+                if (!Commander.processAdminCmd(channel.name, msg.getText(), client)) {
                     broadcaster.broadcast(channel, msg);
                 }
             } else {
@@ -158,7 +165,7 @@ class MessageHandler extends MessageHandlerBase {
     @Override
     public void onBotRemoved(String botId) {
         try {
-            Service.dbManager.removeSubscriber(botId);
+            Service.storage.removeSubscriber(botId);
             Logger.info("Removed Subscriber: %s", botId);
         } catch (SQLException e) {
             Logger.error(e.getMessage());
@@ -225,7 +232,7 @@ class MessageHandler extends MessageHandlerBase {
             m.setTime(new Date().getTime() / 1000);
             m.setMimeType(msg.getMimeType());
             m.setChannel(channel);
-            Service.dbManager.insertMessage(m);
+            Service.storage.insertMessage(m);
         } catch (SQLException e) {
             Logger.error(e.getLocalizedMessage());
         }
@@ -239,71 +246,12 @@ class MessageHandler extends MessageHandlerBase {
             m.setText(msg.getText());
             m.setMimeType("text");
             m.setChannel(channel);
-            Service.dbManager.insertMessage(m);
+            Service.storage.insertMessage(m);
         } catch (SQLException e) {
             Logger.error(e.getLocalizedMessage());
         }
     }
 
-    private boolean processAdminCmd(String channelName, String cmd, WireClient adminClient) throws Exception {
-        boolean ret = false;
-        if (cmd.startsWith("/"))
-            ret = true;
-
-        if (cmd.equalsIgnoreCase("/help")) {
-            String h = "List of available commands:\n" +
-                    "`/intro <text>` Set **Intro Text** for new Subscribers\n" +
-                    "`/intro <url>`  Set **Intro Picture** for new Subscribers\n" +
-                    "`/mute`         **Mute** all incoming messages from Subscribers\n" +
-                    "`/unmute`       **Unmute** all incoming messages from Subscribers\n" +
-                    "`/stats`        Show some **statistics**: #posts, #subscribers, #feedbacks ...";
-
-            adminClient.sendText(h);
-            return ret;
-        }
-        if (cmd.startsWith("/intro")) {
-            String intro = cmd.replace("/intro", "").trim();
-            if (intro.startsWith("http")) {
-                Service.dbManager.updateChannel(channelName, "intro", intro);
-                adminClient.sendText("Updated `intro picture`");
-            } else {
-                Service.dbManager.updateChannel(channelName, "welcome", intro);
-                adminClient.sendText("Updated `intro text`");
-            }
-            return ret;
-        }
-        if (cmd.equalsIgnoreCase("/mute")) {
-            Service.dbManager.updateChannel(channelName, "muted", 1);
-            adminClient.sendText("You won't receive info about subscribers' activity anymore. Type `/unmute` to resume");
-            return ret;
-        }
-        if (cmd.equalsIgnoreCase("/unmute")) {
-            Service.dbManager.updateChannel(channelName, "muted", 0);
-            adminClient.sendText("Resumed. Type `/mute` to mute");
-            return ret;
-        }
-        if (cmd.equalsIgnoreCase("/stats")) {
-            int subscribers = Service.dbManager.getSubscribers(channelName).size();
-            int posts = Service.dbManager.getBroadcasts(channelName, Integer.MAX_VALUE, Integer.MAX_VALUE).size();
-            int messages = Service.dbManager.getMessages(channelName).size();
-
-            String msg = String.format("```\n" +
-                            "Subscribers: %,d\n" +
-                            "Messages:    %,d\n" +
-                            "Posts:       %,d\n" +
-                            "```",
-                    subscribers,
-                    messages,
-                    posts);
-            adminClient.sendText(msg);
-            return ret;
-        }
-
-        if (ret) {
-            adminClient.sendText("Unknown command: `" + cmd + "`");
-        }
-        return ret;
-    }
 
     private boolean processSubscriberCmd(String cmd, WireClient client) throws Exception {
         switch (cmd) {
@@ -320,12 +268,12 @@ class MessageHandler extends MessageHandlerBase {
                 return true;
             }
             case "/mute": {
-                Service.dbManager.updateBot(client.getId(), "Muted", 1);
+                Service.storage.updateBot(client.getId(), "Muted", 1);
                 client.sendText("You won't receive posts here anymore. Type: `/unmute` to resume");
                 return true;
             }
             case "/unmute": {
-                Service.dbManager.updateBot(client.getId(), "Muted", 0);
+                Service.storage.updateBot(client.getId(), "Muted", 0);
                 client.sendText("Posts resumed");
                 return true;
             }
@@ -340,7 +288,7 @@ class MessageHandler extends MessageHandlerBase {
     }
 
     protected Channel getChannel(String botId) throws SQLException {
-        String channelName = Service.dbManager.getChannelName(botId);
-        return Service.dbManager.getChannel(channelName);
+        String channelName = Service.storage.getChannelName(botId);
+        return Service.storage.getChannel(channelName);
     }
 }

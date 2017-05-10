@@ -20,6 +20,7 @@ package com.wire.bots.channels;
 
 import com.wire.bots.channels.model.Broadcast;
 import com.wire.bots.channels.model.Channel;
+import com.wire.bots.channels.model.Subscriber;
 import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.Logger;
 import com.wire.bots.sdk.WireClient;
@@ -94,9 +95,9 @@ public class Broadcaster {
 
     public void followBack(final WireClient client, int limit) throws SQLException {
         final String botId = client.getId();
-        String channelName = Service.dbManager.getChannelName(botId);
-        int last = Service.dbManager.getLast(botId);
-        final ArrayList<Broadcast> broadcasts = Service.dbManager.getBroadcasts(channelName, last, limit);
+        String channelName = Service.storage.getChannelName(botId);
+        int last = Service.storage.getLast(botId);
+        final ArrayList<Broadcast> broadcasts = Service.storage.getBroadcasts(channelName, last, limit);
         Collections.sort(broadcasts, new Comparator<Broadcast>() {
             @Override
             public int compare(Broadcast b1, Broadcast b2) {
@@ -107,7 +108,7 @@ public class Broadcaster {
         });
 
         if (!broadcasts.isEmpty()) {
-            Service.dbManager.updateBot(botId, "Last", broadcasts.get(0).getId());
+            Service.storage.updateBot(botId, "Last", broadcasts.get(0).getId());
         }
 
         executor.execute(new Runnable() {
@@ -147,7 +148,7 @@ public class Broadcaster {
         b.setText(text);
         b.setChannel(channelName);
 
-        int id = Service.dbManager.insertBroadcast(b);
+        Service.storage.insertBroadcast(b);
 
         for (final String botId : getSubscribers(channelName)) {
             executor.execute(new Runnable() {
@@ -173,7 +174,7 @@ public class Broadcaster {
     }
 
     public void revokeBroadcast(String channelName, final String messageId) throws SQLException {
-        Service.dbManager.deleteBroadcast(messageId);
+        Service.storage.deleteBroadcast(messageId);
 
         for (final String botId : getSubscribers(channelName)) {
             executor.execute(new Runnable() {
@@ -252,7 +253,7 @@ public class Broadcaster {
             broadcast.setMessageId(picture.getMessageId());
             broadcast.setChannel(channel);
 
-            Service.dbManager.insertBroadcast(broadcast);
+            Service.storage.insertBroadcast(broadcast);
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
         }
@@ -261,7 +262,8 @@ public class Broadcaster {
     private void sendLink(String url, String title, Picture img, String botId) {
         try {
             WireClient client = repo.getWireClient(botId);
-            client.sendLinkPreview(url, title, img);
+            if (client != null)
+                client.sendLinkPreview(url, title, img);
         } catch (Exception e) {
             Logger.error("Bot: %s. Error: %s", botId, e.getMessage());
         }
@@ -270,7 +272,8 @@ public class Broadcaster {
     private void sendText(String messageId, String text, String botId) {
         try {
             WireClient client = repo.getWireClient(botId);
-            client.sendText(text, 0, messageId);
+            if (client != null)
+                client.sendText(text, 0, messageId);
         } catch (Exception e) {
             Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
         }
@@ -279,7 +282,8 @@ public class Broadcaster {
     private void sendPicture(Picture picture, String botId) {
         try {
             WireClient client = repo.getWireClient(botId);
-            client.sendPicture(picture);
+            if (client != null)
+                client.sendPicture(picture);
         } catch (Exception e) {
             Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
         }
@@ -328,10 +332,30 @@ public class Broadcaster {
     private ArrayList<String> getSubscribers(String channelName) {
         ArrayList<String> ret = new ArrayList<>();
         try {
-            Channel channel = Service.dbManager.getChannel(channelName);
-            for (String botId : Service.dbManager.getSubscribers(channelName)) {
-                if (!botId.equals(channel.admin))
-                    ret.add(botId);
+            Channel channel = Service.storage.getChannel(channelName);
+            ArrayList<String> whitelist = Service.storage.getWhitelist(channelName, Storage.State.WHITE);
+            Logger.info("%s White list: %s", channelName, whitelist);
+
+            ArrayList<String> blacklist = Service.storage.getWhitelist(channelName, Storage.State.BLACK);
+            Logger.info("%s Black list: %s", channelName, blacklist);
+
+            for (Subscriber subscriber : Service.storage.getSubscribers(channelName)) {
+                if (subscriber.botId.equals(channel.admin))
+                    continue;
+
+                if (!whitelist.isEmpty()) {
+                    if (whitelist.contains(subscriber.handle))
+                        ret.add(subscriber.botId);
+                    else
+                        Logger.info("Not white listed: %s", subscriber.handle);
+                }
+
+                if (whitelist.isEmpty()) {
+                    if (blacklist.contains(subscriber.handle))
+                        Logger.info("Black listed: %s", subscriber.handle);
+                    else
+                        ret.add(subscriber.botId);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -339,10 +363,4 @@ public class Broadcaster {
         }
         return ret;
     }
-
-    /*
-    private ArrayList<String> getSubscribers(String channelName) throws SQLException {
-        return Service.dbManager.getSubscribers(channelName);
-    }
-    */
 }
