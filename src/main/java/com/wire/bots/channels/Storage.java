@@ -379,6 +379,15 @@ public class Storage {
         }
     }
 
+    public boolean removeSubscriber(String botId, String origin) throws SQLException {
+        try (Connection conn = getConnection()) {
+            PreparedStatement stm = conn.prepareStatement("DELETE FROM Bots WHERE BotId = ? AND Origin = ?");
+            stm.setString(1, botId);
+            stm.setString(2, origin);
+            return stm.execute();
+        }
+    }
+
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(String.format("jdbc:sqlite:%s", path));
     }
@@ -431,6 +440,7 @@ public class Storage {
 
     /**
      * Empty White List and Black List.
+     *
      * @param channelName Channel name
      * @return number of rows deleted
      * @throws SQLException

@@ -186,9 +186,14 @@ class MessageHandler extends MessageHandlerBase {
     @Override
     public void onMemberLeave(WireClient client, ArrayList<String> userIds) {
         try {
-            Channel channel = getChannel(client.getId());
+            String botId = client.getId();
+            Channel channel = getChannel(botId);
             if (!channel.muted)
                 broadcaster.sendToAdminConv(channel.admin, "**%s** left", userIds);
+
+            for (String userId : userIds) {
+                Service.storage.removeSubscriber(botId, userId);
+            }
         } catch (SQLException e) {
             Logger.error(e.getMessage());
         }
