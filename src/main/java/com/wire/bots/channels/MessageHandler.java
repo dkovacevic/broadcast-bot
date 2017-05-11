@@ -74,11 +74,9 @@ class MessageHandler extends MessageHandlerBase {
             int id = Service.storage.getLastBroadcast(channel.name);
             Service.storage.updateBot(botId, "Last", ++id);
 
-            /*
             if (!channel.muted) {
-                broadcaster.sendToAdminConv(channel.admin, origin.name);
-            }*/
-
+                broadcaster.sendToAdminConv(channel.admin, "New subscriber just joined");
+            }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
             return false;
@@ -132,7 +130,7 @@ class MessageHandler extends MessageHandlerBase {
             } else {
                 if (!processSubscriberCmd(msg.getText(), client)) {
                     if (!channel.muted)
-                        broadcaster.sendToAdminConv(channel.admin, msg);
+                        broadcaster.sendToAdminConv(channel.admin, msg.getText());
 
                     Service.storage.insertMessage(botId, channel.name);
                 }
@@ -173,30 +171,18 @@ class MessageHandler extends MessageHandlerBase {
     }
 
     @Override
-    public void onMemberJoin(WireClient client, ArrayList<String> userIds) {
-        /*
-        try {
-            Channel channel = getChannel(client.getId());
-            if (!channel.muted)
-                broadcaster.sendToAdminConv(channel.admin, "**%s** joined", userIds);
-        } catch (SQLException e) {
-            Logger.error(e.getMessage());
-        }
-        */
-    }
-
-    @Override
     public void onMemberLeave(WireClient client, ArrayList<String> userIds) {
         try {
             String botId = client.getId();
-            //Channel channel = getChannel(botId);
-            //if (!channel.muted)
-            //  broadcaster.sendToAdminConv(channel.admin, "**%s** left", userIds);
 
             // Delete the channel if there are no more members
             List<Member> members = client.getConversation().members;
-            if (members.isEmpty())
+            if (members.isEmpty()) {
                 Service.storage.removeSubscriber(botId);
+                Channel channel = getChannel(botId);
+                if (!channel.muted)
+                    broadcaster.sendToAdminConv(channel.admin, "Subscriber left");
+            }
         } catch (Exception e) {
             Logger.error(e.getMessage());
         }
@@ -209,22 +195,16 @@ class MessageHandler extends MessageHandlerBase {
             Channel channel = getChannel(botId);
 
             if (msg.hasReaction()) {
-                onMemberFeedbackLike(channel, userId);
+                if (!channel.muted)
+                    broadcaster.sendToAdminConv(channel.admin, "Got one like!");
             }
 
             if (msg.hasDeleted() && botId.equals(channel.admin)) {
                 broadcaster.revokeBroadcast(channel.name, msg.getDeleted().getMessageId());
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             Logger.error(e.getMessage());
         }
-    }
-
-    private void onMemberFeedbackLike(Channel channel, String userId) {
-        ArrayList<String> userIds = new ArrayList<>();
-        userIds.add(userId);
-        if (!channel.muted)
-            broadcaster.sendToAdminConv(channel.admin, "**%s** liked", userIds);
     }
 
     private boolean processSubscriberCmd(String cmd, WireClient client) throws Exception {

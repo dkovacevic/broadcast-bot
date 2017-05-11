@@ -9,12 +9,25 @@ There is no limitation as in number of subscribers or number of messages.
 The Channel owner will be placed into Admin Conversation and everything that is posted there will be forwarded to Subscribers
 Message can be: text, web page, picture (a url to jpg|png|gif), youtube link, soundcloud link ... 
 
+## Channel Admin(s)
+ - Broadcast messages into Channel. Text, pictures, videos, recordings, links ...
+ - Receive feedback from Subscribers (text, pictures, likes ...). 
+ - Limit who can join the Channel
+ - Get some statics (number of subscribers, feedbacks ...) 
+ 
+## Subscriber
+ - See posts in the Channel
+ - See old posts from the Channel
+ - Send feedback directly to Channel owner anonymously 
+ - Mute/Unmute the channel
+ 
 ## Channels vs. Groups
- - Unlimited number of subscribers/participants
- - Able to see the previous messages after joining the channel
- - Nobody except the Channel Admin can see the list of subscribers/participants
- - Only Channel Admin can see the messages posted by subscribers
- - Channel can be advertised and anybody can subscribe to it
- - Only Channel Admin controls who can join the channel and what is posted
- - Subscribers posting in a Channel is faster than posting in a big Group conversation
+ - Unlimited number of subscribers
+ - Able to see the previous posts after joining the channel
+ - Able to mute messages in the Channel - save on bandwidth
+ - Nobody can see the list of subscribers - privacy
+ - Only Channel Admin can see the messages posted by anonymous Subscriber 
+ - Channel can be advertised as a link and anybody can subscribe to it
+ - Channel Admin can control who can join the channel
+
 

@@ -28,7 +28,6 @@ import com.wire.bots.sdk.assets.Picture;
 import com.wire.bots.sdk.models.AssetKey;
 import com.wire.bots.sdk.models.ImageMessage;
 import com.wire.bots.sdk.models.TextMessage;
-import com.wire.bots.sdk.server.model.User;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -186,58 +185,27 @@ public class Broadcaster {
         }
     }
 
-    public void sendToAdminConv(String adminBot, TextMessage msg) throws Exception {
-        WireClient adminClient = repo.getWireClient(adminBot);
-        ArrayList<String> ids = new ArrayList<>();
-        ids.add(msg.getUserId());
-        for (User user : adminClient.getUsers(ids)) {
-            String feedback = String.format("**%s** wrote: _%s_", user.name, msg.getText());
-            adminClient.sendText(feedback);
-        }
-    }
-
     public void sendToAdminConv(String adminBot, ImageMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
-        ArrayList<String> ids = new ArrayList<>();
-        ids.add(msg.getUserId());
-        for (User user : adminClient.getUsers(ids)) {
-            String feedback = String.format("**%s** sent:", user.name);
-            adminClient.sendText(feedback);
 
-            Picture picture = new Picture();
-            picture.setMimeType(msg.getMimeType());
-            picture.setSize((int) msg.getSize());
-            picture.setWidth(msg.getWidth());
-            picture.setHeight(msg.getHeight());
-            picture.setAssetKey(msg.getAssetKey());
-            picture.setAssetToken(msg.getAssetToken());
-            picture.setOtrKey(msg.getOtrKey());
-            picture.setSha256(msg.getSha256());
+        Picture picture = new Picture();
+        picture.setMimeType(msg.getMimeType());
+        picture.setSize((int) msg.getSize());
+        picture.setWidth(msg.getWidth());
+        picture.setHeight(msg.getHeight());
+        picture.setAssetKey(msg.getAssetKey());
+        picture.setAssetToken(msg.getAssetToken());
+        picture.setOtrKey(msg.getOtrKey());
+        picture.setSha256(msg.getSha256());
 
-            adminClient.sendPicture(picture);
-        }
+        adminClient.sendText("User sent:");
+        adminClient.sendPicture(picture);
     }
 
-    public void sendToAdminConv(String adminBot, String format, ArrayList<String> userIds) {
-        try {
-            WireClient adminClient = repo.getWireClient(adminBot);
-            for (User user : adminClient.getUsers(userIds)) {
-                String feedback = String.format(format, user.name);
-                adminClient.sendText(feedback);
-            }
-        } catch (Exception e) {
-            Logger.error(e.getLocalizedMessage());
-        }
-    }
-
-    /*
-    public void sendToAdminConv(String adminBot, String userName) throws Exception {
+    public void sendToAdminConv(String adminBot, String text) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
-
-        String feedback = String.format("**%s** just joined", userName);
-        adminClient.sendText(feedback);
+        adminClient.sendText(text);
     }
-    */
 
     private void saveBroadcast(String url, String title, Picture picture, String channel) {
         try {
