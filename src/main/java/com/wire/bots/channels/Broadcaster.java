@@ -230,12 +230,14 @@ public class Broadcaster {
         }
     }
 
+    /*
     public void sendToAdminConv(String adminBot, String userName) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
 
         String feedback = String.format("**%s** just joined", userName);
         adminClient.sendText(feedback);
     }
+    */
 
     private void saveBroadcast(String url, String title, Picture picture, String channel) {
         try {

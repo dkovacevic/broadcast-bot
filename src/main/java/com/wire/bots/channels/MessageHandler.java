@@ -74,9 +74,11 @@ class MessageHandler extends MessageHandlerBase {
             int id = Service.storage.getLastBroadcast(channel.name);
             Service.storage.updateBot(botId, "Last", ++id);
 
+            /*
             if (!channel.muted) {
                 broadcaster.sendToAdminConv(channel.admin, origin.name);
-            }
+            }*/
+
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
             return false;
