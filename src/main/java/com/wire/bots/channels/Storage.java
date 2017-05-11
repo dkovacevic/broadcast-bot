@@ -19,7 +19,6 @@ package com.wire.bots.channels;
 
 import com.wire.bots.channels.model.Broadcast;
 import com.wire.bots.channels.model.Channel;
-import com.wire.bots.channels.model.Message;
 import com.wire.bots.channels.model.Subscriber;
 import com.wire.bots.sdk.Logger;
 
@@ -51,14 +50,6 @@ public class Storage {
                             "(Id INTEGER PRIMARY KEY AUTOINCREMENT," +
                             " BotId STRING NOT NULL," +
                             " Channel STRING NOT NULL," +
-                            " UserId STRING NOT NULL," +
-                            " Text STRING," +
-                            " Asset_key STRING," +
-                            " Token STRING," +
-                            " Otr_key BLOB," +
-                            " Mime_type STRING NOT NULL," +
-                            " Size INTEGER," +
-                            " Sha256 BLOB," +
                             " Time INTEGER)"
             );
 
@@ -114,48 +105,28 @@ public class Storage {
         }
     }
 
-    public int insertMessage(Message msg) throws SQLException {
+    public int insertMessage(String botId, String channel) throws SQLException {
         try (Connection connection = getConnection()) {
-            String cmd = "INSERT INTO Message " +
-                    "(BotId, UserId, Text, Asset_key, Token, Otr_key, Mime_type, Size , Sha256, Time, Channel) " +
-                    "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-            PreparedStatement stm = connection.prepareStatement(cmd);
-            stm.setString(1, msg.getBotId());
-            stm.setString(2, msg.getUserId());
-            stm.setString(3, msg.getText());
-            stm.setString(4, msg.getAssetKey());
-            stm.setString(5, msg.getToken());
-            stm.setBytes(6, msg.getOtrKey());
-            stm.setString(7, msg.getMimeType());
-            stm.setLong(8, msg.getSize());
-            stm.setBytes(9, msg.getSha256());
-            stm.setLong(10, new Date().getTime() / 1000);
-            stm.setString(11, msg.getChannel());
-
+            PreparedStatement stm = connection.prepareStatement("INSERT INTO Message " +
+                    "(BotId, Channel, Time) " +
+                    "VALUES(?, ?, ?)");
+            stm.setString(1, botId);
+            stm.setString(2, channel);
+            stm.setLong(3, new Date().getTime() / 1000);
             return stm.executeUpdate();
         }
     }
 
-    public ArrayList<Message> getMessages(String channel) throws SQLException {
-        ArrayList<Message> ret = new ArrayList<>();
+    public int getMessageCount(String channel) throws SQLException {
         try (Connection connection = getConnection()) {
-            PreparedStatement stm = connection.prepareStatement("SELECT * FROM Message WHERE Channel = ?");
+            PreparedStatement stm = connection.prepareStatement("SELECT count(*) AS Count FROM Message WHERE Channel = ?");
             stm.setString(1, channel);
             ResultSet rs = stm.executeQuery();
-            while (rs.next()) {
-                Message msg = new Message();
-                msg.setBotId(rs.getString("BotId"));
-                msg.setUserId(rs.getString("UserId"));
-                msg.setText(rs.getString("Text"));
-                msg.setAssetKey(rs.getString("Asset_key"));
-                msg.setToken(rs.getString("Token"));
-                msg.setTime(rs.getInt("Time"));
-                msg.setChannel(rs.getString("Channel"));
-                ret.add(msg);
+            if (rs.next()) {
+                return rs.getInt("Count");
             }
         }
-        return ret;
+        return 0;
     }
 
     public int insertBroadcast(Broadcast broadcast) throws SQLException {

@@ -20,7 +20,6 @@ package com.wire.bots.channels;
 
 import com.waz.model.Messages;
 import com.wire.bots.channels.model.Channel;
-import com.wire.bots.channels.model.Message;
 import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.Logger;
 import com.wire.bots.sdk.MessageHandlerBase;
@@ -35,7 +34,6 @@ import com.wire.bots.sdk.server.model.User;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 class MessageHandler extends MessageHandlerBase {
@@ -131,11 +129,10 @@ class MessageHandler extends MessageHandlerBase {
                 }
             } else {
                 if (!processSubscriberCmd(msg.getText(), client)) {
-
-                    saveMessage(botId, msg, channel.name);
-
                     if (!channel.muted)
                         broadcaster.sendToAdminConv(channel.admin, msg);
+
+                    Service.storage.insertMessage(botId, channel.name);
                 }
             }
         } catch (Exception e) {
@@ -153,10 +150,10 @@ class MessageHandler extends MessageHandlerBase {
                 byte[] bytes = client.downloadAsset(msg.getAssetKey(), msg.getAssetToken(), msg.getSha256(), msg.getOtrKey());
                 broadcaster.broadcast(channel.name, msg, bytes);
             } else {
-                saveMessage(botId, msg, channel.name);
-
                 if (!channel.muted)
                     broadcaster.sendToAdminConv(channel.admin, msg);
+
+                Service.storage.insertMessage(botId, channel.name);
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
@@ -175,6 +172,7 @@ class MessageHandler extends MessageHandlerBase {
 
     @Override
     public void onMemberJoin(WireClient client, ArrayList<String> userIds) {
+        /*
         try {
             Channel channel = getChannel(client.getId());
             if (!channel.muted)
@@ -182,15 +180,16 @@ class MessageHandler extends MessageHandlerBase {
         } catch (SQLException e) {
             Logger.error(e.getMessage());
         }
+        */
     }
 
     @Override
     public void onMemberLeave(WireClient client, ArrayList<String> userIds) {
         try {
             String botId = client.getId();
-            Channel channel = getChannel(botId);
-            if (!channel.muted)
-                broadcaster.sendToAdminConv(channel.admin, "**%s** left", userIds);
+            //Channel channel = getChannel(botId);
+            //if (!channel.muted)
+            //  broadcaster.sendToAdminConv(channel.admin, "**%s** left", userIds);
 
             // Delete the channel if there are no more members
             List<Member> members = client.getConversation().members;
@@ -225,40 +224,6 @@ class MessageHandler extends MessageHandlerBase {
         if (!channel.muted)
             broadcaster.sendToAdminConv(channel.admin, "**%s** liked", userIds);
     }
-
-    private void saveMessage(String botId, ImageMessage msg, String channel) throws SQLException {
-        try {
-            Message m = new Message();
-            m.setBotId(botId);
-            m.setUserId(msg.getUserId());
-            m.setAssetKey(msg.getAssetKey());
-            m.setToken(msg.getAssetToken());
-            m.setOtrKey(msg.getOtrKey());
-            m.setSha256(msg.getSha256());
-            m.setSize(msg.getSize());
-            m.setTime(new Date().getTime() / 1000);
-            m.setMimeType(msg.getMimeType());
-            m.setChannel(channel);
-            Service.storage.insertMessage(m);
-        } catch (SQLException e) {
-            Logger.error(e.getLocalizedMessage());
-        }
-    }
-
-    private void saveMessage(String botId, TextMessage msg, String channel) {
-        try {
-            Message m = new Message();
-            m.setBotId(botId);
-            m.setUserId(msg.getUserId());
-            m.setText(msg.getText());
-            m.setMimeType("text");
-            m.setChannel(channel);
-            Service.storage.insertMessage(m);
-        } catch (SQLException e) {
-            Logger.error(e.getLocalizedMessage());
-        }
-    }
-
 
     private boolean processSubscriberCmd(String cmd, WireClient client) throws Exception {
         switch (cmd) {

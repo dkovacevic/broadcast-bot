@@ -68,7 +68,7 @@ public class Commander {
         if (cmd.equalsIgnoreCase("/stats")) {
             int subscribers = Service.storage.getSubscribers(channelName).size();
             int posts = Service.storage.getBroadcasts(channelName, Integer.MAX_VALUE, Integer.MAX_VALUE).size();
-            int messages = Service.storage.getMessages(channelName).size();
+            int messages = Service.storage.getMessageCount(channelName);
 
             String msg = String.format("```\n" +
                             "Subscribers: %,d\n" +
