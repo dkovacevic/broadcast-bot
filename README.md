@@ -1,5 +1,5 @@
 ## How to Create a public Channel
- - Register as Wire Bot Developer via Don at: https://app.wire.com/?bot=don
+ - Register as Wire Bot Developer via DevBot at: https://app.wire.com/?bot=devbot
  - Ask Don to create your public channel by typing: `create public channel`
  
 ## How does it work?
