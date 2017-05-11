@@ -198,7 +198,7 @@ public class Broadcaster {
         picture.setOtrKey(msg.getOtrKey());
         picture.setSha256(msg.getSha256());
 
-        adminClient.sendText("User sent:");
+        adminClient.sendText("**User sent:**");
         adminClient.sendPicture(picture);
     }
 

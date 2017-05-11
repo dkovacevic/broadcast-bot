@@ -4,22 +4,22 @@
  
 ## How does it work?
 This bot channels messages posted to it in Admin conversation to all conversations that it is in.
-In order to subscribe to a channel user should use the link: https://wire.com/b/[channel_name].
+Channel is accessible via *invite link* 
 There is no limitation as in number of subscribers or number of messages. 
-The Channel owner will be placed into Admin Conversation and everything that is posted there will be forwarded to Subscribers
-Message can be: text, web page, picture (a url to jpg|png|gif), youtube link, soundcloud link ... 
+The Channel owner will be placed into Admin Conversation and everything that is posted there will be forwarded to 
+Subscribers. Post can be: Text, URL, Picture (a url to jpg|png|gif), YouTube link, Soundcloud link ... 
 
 ## Channel Admin(s)
  - Broadcast messages into Channel. Text, pictures, videos, recordings, links ...
  - Receive feedback from Subscribers (text, pictures, likes ...). 
  - Limit who can join the Channel
- - Get some statics (number of subscribers, feedbacks ...) 
+ - Get some statistics (number of subscribers, feedbacks ...) 
  
 ## Subscriber
  - See posts in the Channel
  - See old posts from the Channel
  - Send feedback directly to Channel owner anonymously 
- - Mute/Unmute the channel
+ - Mute/Unmute the Channel
  
 ## Channels vs. Groups
  - Unlimited number of subscribers
@@ -28,6 +28,6 @@ Message can be: text, web page, picture (a url to jpg|png|gif), youtube link, so
  - Nobody can see the list of subscribers - privacy
  - Only Channel Admin can see the messages posted by anonymous Subscriber 
  - Channel can be advertised as a link and anybody can subscribe to it
- - Channel Admin can control who can join the channel
+ - Channel Admin can control who can join the Channel
 
 
