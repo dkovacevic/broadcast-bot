@@ -52,13 +52,13 @@ class MessageHandler extends MessageHandlerBase {
 
             ArrayList<String> whitelist = Service.storage.getWhitelist(channel.name, Storage.State.WHITE);
             if (!whitelist.isEmpty() && !whitelist.contains(origin.handle)) {
-                Logger.warning("Rejecting NewBot. Not White Listed: %s", origin.handle);
+                Logger.warning("Rejecting NewBot. Not White Listed");
                 return false;
             }
 
             ArrayList<String> blacklist = Service.storage.getWhitelist(channel.name, Storage.State.BLACK);
             if (!blacklist.isEmpty() && blacklist.contains(origin.handle)) {
-                Logger.warning("Rejecting NewBot. Black Listed: %s", origin.handle);
+                Logger.warning("Rejecting NewBot. Black Listed");
                 return false;
             }
 
@@ -71,11 +71,18 @@ class MessageHandler extends MessageHandlerBase {
                 }
             }
 
+            if (channel.admin == null) {
+                Logger.warning("Rejecting NewBot. Channel `%s` not yet activated", channel.name);
+                return false;
+            }
+
             int id = Service.storage.getLastBroadcast(channel.name);
             Service.storage.updateBot(botId, "Last", ++id);
 
+            Logger.info("New Subscriber for Channel: %s. Bot: %s", channel.name, newBot.id);
+
             if (!channel.muted) {
-                broadcaster.sendToAdminConv(channel.admin, "**New user**");
+                broadcaster.sendToAdminConv(channel.admin, "**New follower**");
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
@@ -126,12 +133,13 @@ class MessageHandler extends MessageHandlerBase {
 
             if (botId.equals(channel.admin)) {
                 if (!Commander.processAdminCmd(channel.name, text, client)) {
+                    Logger.info("New broadcast for Channel: %s", channel.name);
                     broadcaster.broadcast(channel, msg);
                 }
             } else {
                 if (!processSubscriberCmd(text, client)) {
                     if (!channel.muted) {
-                        broadcaster.sendToAdminConv(channel.admin, String.format("**User wrote:** _%s_", text));
+                        broadcaster.sendToAdminConv(channel.admin, String.format("**Follower wrote:** _%s_", text));
                     }
                     Service.storage.insertMessage(botId, channel.name);
                 }
@@ -148,6 +156,7 @@ class MessageHandler extends MessageHandlerBase {
             Channel channel = getChannel(botId);
 
             if (botId.equals(channel.admin)) {
+                Logger.info("New broadcast for Channel: %s", channel.name);
                 byte[] bytes = client.downloadAsset(msg.getAssetKey(), msg.getAssetToken(), msg.getSha256(), msg.getOtrKey());
                 broadcaster.broadcast(channel.name, msg, bytes);
             } else {
@@ -166,8 +175,8 @@ class MessageHandler extends MessageHandlerBase {
         try {
             Channel channel = getChannel(botId);
             Service.storage.removeSubscriber(botId);
-            broadcaster.sendToAdminConv(channel.admin, "**User left**");
-            Logger.info("Removed Subscriber: %s", botId);
+            broadcaster.sendToAdminConv(channel.admin, "**Follower left**");
+            Logger.info("Subscriber left from Channel: %s. Bot: %s", channel.name, botId);
         } catch (Exception e) {
             Logger.error(e.getMessage());
         }
@@ -183,10 +192,9 @@ class MessageHandler extends MessageHandlerBase {
             List<Member> members = client.getConversation().members;
             if (members.isEmpty()) {
                 Service.storage.removeSubscriber(botId);
-                Logger.info("Removed Subscriber: %s", botId);
-
+                Logger.info("Subscriber left from Channel: %s. Bot: %s", channel.name, botId);
                 if (!channel.muted)
-                    broadcaster.sendToAdminConv(channel.admin, "**User left**");
+                    broadcaster.sendToAdminConv(channel.admin, "**Follower left**");
             }
         } catch (Exception e) {
             Logger.error(e.getMessage());

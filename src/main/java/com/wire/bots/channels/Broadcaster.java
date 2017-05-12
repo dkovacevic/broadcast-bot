@@ -198,7 +198,7 @@ public class Broadcaster {
         picture.setOtrKey(msg.getOtrKey());
         picture.setSha256(msg.getSha256());
 
-        adminClient.sendText("**User sent:**");
+        adminClient.sendText("**Follower sent:**");
         adminClient.sendPicture(picture);
     }
 
@@ -304,27 +304,21 @@ public class Broadcaster {
         try {
             Channel channel = Service.storage.getChannel(channelName);
             ArrayList<String> whitelist = Service.storage.getWhitelist(channelName, Storage.State.WHITE);
-            Logger.info("%s White list: %s", channelName, whitelist);
+            //Logger.info("%s White list: %s", channelName, whitelist);
 
             ArrayList<String> blacklist = Service.storage.getWhitelist(channelName, Storage.State.BLACK);
-            Logger.info("%s Black list: %s", channelName, blacklist);
+            //Logger.info("%s Black list: %s", channelName, blacklist);
 
             for (Subscriber subscriber : Service.storage.getSubscribers(channelName)) {
                 if (subscriber.botId.equals(channel.admin))
                     continue;
 
-                if (!whitelist.isEmpty()) {
-                    if (whitelist.contains(subscriber.handle))
-                        ret.add(subscriber.botId);
-                    else
-                        Logger.info("Not white listed: %s", subscriber.handle);
+                if (!whitelist.isEmpty() && whitelist.contains(subscriber.handle)) {
+                    ret.add(subscriber.botId);
                 }
 
-                if (whitelist.isEmpty()) {
-                    if (blacklist.contains(subscriber.handle))
-                        Logger.info("Black listed: %s", subscriber.handle);
-                    else
-                        ret.add(subscriber.botId);
+                if (whitelist.isEmpty() && !blacklist.contains(subscriber.handle)) {
+                    ret.add(subscriber.botId);
                 }
             }
         } catch (SQLException e) {

@@ -31,7 +31,7 @@ public class AdminResource {
                     build();
         }
 
-        Logger.info("New Channel: %s, origin: %s, token: %s created",
+        Logger.info("Admin: New Channel: %s, origin: %s, token: %s created",
                 channelName,
                 admin.getOrigin(),
                 admin.getToken());

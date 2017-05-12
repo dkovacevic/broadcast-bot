@@ -98,7 +98,6 @@ public class Storage {
                             "PRIMARY KEY (Channel, Handle)" +
                             ")"
             );
-
         } catch (Exception e) {
             e.printStackTrace();
             Logger.error(e.getLocalizedMessage());

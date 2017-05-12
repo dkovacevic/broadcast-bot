@@ -56,21 +56,20 @@ public class BotsResource {
 
         Channel channel = Service.storage.getChannel(channelName);
         if (channel == null) {
-            Logger.warning("Unknown channel: %s.", channelName);
+            Logger.warning("Unknown Channel: %s.", channelName);
             return Response.
                     status(404).
                     build();
         }
 
         if (!Util.compareTokens(auth, channel.token)) {
-            Logger.warning("Invalid Authorization for the channel: %s.", channelName);
+            Logger.warning("Invalid Authorization for Channel: %s.", channelName);
             return Response.
                     status(403).
                     build();
         }
 
         User origin = newBot.origin;
-        Logger.info("New Bot: %s for the Channel: %s, Origin: %s", newBot.id, channelName, origin.handle);
 
         Service.storage.insertBot(channelName,
                 newBot.id,
@@ -80,7 +79,7 @@ public class BotsResource {
                 newBot.conversation.id);
 
         if (origin.id.equals(channel.origin) && channel.admin == null) {
-            Logger.info("Setting admin conv %s for the channel: %s", newBot.id, channelName);
+            Logger.info("Setting Admin Conv for Channel: %s. Bot: %s", channelName, newBot.id);
             Service.storage.updateChannel(channelName, "Admin", newBot.id);
         } else if (!handler.onNewBot(newBot)) {
             return Response.
