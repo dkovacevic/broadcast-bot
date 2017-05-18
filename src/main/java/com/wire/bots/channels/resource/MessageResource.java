@@ -35,6 +35,7 @@ public class MessageResource extends MessageResourceBase {
         if (!Util.compareTokens(auth, channel.token)) {
             Logger.warning("Invalid Authorization for the channel: %s.", channelName);
             return Response.
+                    ok("Invalid Authorization: " + auth).
                     status(403).
                     build();
         }

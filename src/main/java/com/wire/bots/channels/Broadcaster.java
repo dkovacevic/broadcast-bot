@@ -25,15 +25,8 @@ import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.Logger;
 import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.assets.Picture;
-import com.wire.bots.sdk.models.AssetKey;
-import com.wire.bots.sdk.models.ImageMessage;
-import com.wire.bots.sdk.models.TextMessage;
-import org.jsoup.Connection;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.select.Elements;
+import com.wire.bots.sdk.models.*;
 
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -50,18 +43,15 @@ public class Broadcaster {
     }
 
     public void broadcast(Channel channel, TextMessage msg) throws Exception {
-        String text = msg.getText();
-        String messageId = msg.getMessageId();
-
-        if (text.startsWith("http")) {
-            broadcastUrl(channel, text);
+        if (msg.getText().startsWith("http")) {
+            broadcastUrl(channel, msg);
         } else {
-            broadcastText(channel.name, messageId, text);
+            broadcastText(channel.name, msg);
         }
     }
 
-    public void broadcast(String channelName, ImageMessage msg, byte[] imgData) throws Exception {
-        Picture picture = new Picture(imgData, msg.getMimeType());
+    public void broadcast(String channelName, ImageMessage msg) throws Exception {
+        final Picture picture = new Picture(msg.getData(), msg.getMimeType());
         picture.setSize((int) msg.getSize());
         picture.setWidth(msg.getWidth());
         picture.setHeight(msg.getHeight());
@@ -71,25 +61,60 @@ public class Broadcaster {
         picture.setSha256(msg.getSha256());
         picture.setMessageId(msg.getMessageId());
 
-        broadcastPicture(channelName, picture);
-    }
-
-    public void broadcastUrl(Channel channel, final String url) throws Exception {
-        WireClient adminClient = repo.getWireClient(channel.admin);
-
-        final String title = extractPageTitle(url);
-        final Picture preview = uploadPreview(adminClient, extractPagePreview(url));
-
-        saveBroadcast(url, title, preview, channel.name);
-
-        for (final String botId : getSubscribers(channel.name)) {
+        for (final String botId : getSubscribers(channelName)) {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
-                    sendLink(url, title, preview, botId);
+                    try {
+                        WireClient client = repo.getWireClient(botId);
+                        if (client != null)
+                            client.sendPicture(picture);
+                    } catch (Exception e) {
+                        Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
+                    }
                 }
             });
         }
+        Service.storage.insertBroadcast(new Broadcast(channelName, msg));
+    }
+
+    public void broadcast(String channelName, final AudioMessage msg) throws Exception {
+        for (final String botId : getSubscribers(channelName)) {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        WireClient client = repo.getWireClient(botId);
+                        if (client != null)
+                            client.sendAudio(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
+                    } catch (Exception e) {
+                        Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
+                    }
+                }
+            });
+        }
+        Service.storage.insertBroadcast(new Broadcast(channelName, msg));
+    }
+
+    public void broadcast(String channelName, final VideoMessage msg) throws Exception {
+        for (final String botId : getSubscribers(channelName)) {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        WireClient client = repo.getWireClient(botId);
+                        if (client != null)
+                            client.sendVideo(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
+                    } catch (Exception e) {
+                        Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
+                    }                }
+            });
+        }
+        Service.storage.insertBroadcast(new Broadcast(channelName, msg));
+    }
+
+    public void broadcast(String name, AttachmentMessage msg) {
+
     }
 
     public void followBack(final WireClient client, int limit) throws SQLException {
@@ -115,9 +140,7 @@ public class Broadcaster {
             public void run() {
                 try {
                     for (final Broadcast b : broadcasts) {
-                        if (b.getText() != null) {
-                            client.sendText(b.getText());
-                        } else if (b.getUrl() != null) {
+                        if (b.getUrl() != null) {
                             Picture preview = new Picture(b.getAssetData());
                             preview.setAssetKey(b.getAssetKey());
                             preview.setAssetToken(b.getToken());
@@ -131,7 +154,10 @@ public class Broadcaster {
                             picture.setOtrKey(b.getOtrKey());
                             picture.setSha256(b.getSha256());
                             client.sendPicture(picture);
+                        } else if (b.getText() != null) {
+                            client.sendText(b.getText());
                         }
+
                         Thread.sleep(1500);
                     }
                 } catch (Exception e) {
@@ -141,37 +167,6 @@ public class Broadcaster {
         });
     }
 
-    private void broadcastText(String channelName, final String messageId, final String text) throws SQLException {
-        Broadcast b = new Broadcast();
-        b.setMessageId(messageId);
-        b.setText(text);
-        b.setChannel(channelName);
-
-        Service.storage.insertBroadcast(b);
-
-        for (final String botId : getSubscribers(channelName)) {
-            executor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    sendText(messageId, text, botId);
-                }
-            });
-        }
-    }
-
-    private void broadcastPicture(String channelName, final Picture picture) throws SQLException {
-        saveBroadcast(null, null, picture, channelName);
-
-        for (final String botId : getSubscribers(channelName)) {
-            executor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    sendPicture(picture, botId);
-                }
-            });
-        }
-    }
-
     public void revokeBroadcast(String channelName, final String messageId) throws SQLException {
         Service.storage.deleteBroadcast(messageId);
 
@@ -179,7 +174,12 @@ public class Broadcaster {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
-                    deleteMessage(messageId, botId);
+                    try {
+                        WireClient client = repo.getWireClient(botId);
+                        client.deleteMessage(messageId);
+                    } catch (Exception e) {
+                        Logger.error("Bot: %s. Error: %s", botId, e.getMessage());
+                    }
                 }
             });
         }
@@ -198,65 +198,34 @@ public class Broadcaster {
         picture.setOtrKey(msg.getOtrKey());
         picture.setSha256(msg.getSha256());
 
-        adminClient.sendText("**Follower sent:**");
+        adminClient.sendText("**Follower has sent:**");
         adminClient.sendPicture(picture);
+    }
+
+    public void sendToAdminConv(String adminBot, AudioMessage msg) throws Exception {
+        WireClient adminClient = repo.getWireClient(adminBot);
+
+        adminClient.sendText("**Follower has sent:**");
+        adminClient.sendAudio(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
+    }
+
+    public void sendToAdminConv(String adminBot, VideoMessage msg) throws Exception {
+        WireClient adminClient = repo.getWireClient(adminBot);
+
+        adminClient.sendText("**Follower has sent:**");
+        adminClient.sendVideo(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
+    }
+
+    public void sendToAdminConv(String adminBot, AttachmentMessage msg) throws Exception {
+        WireClient adminClient = repo.getWireClient(adminBot);
+
+        adminClient.sendText("**Follower has sent:**");
+        adminClient.sendVideo(msg.getData(), msg.getName(), msg.getMimeType(), 0);
     }
 
     public void sendToAdminConv(String adminBot, String text) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
         adminClient.sendText(text);
-    }
-
-    private void saveBroadcast(String url, String title, Picture picture, String channel) {
-        try {
-            // save to db
-            Broadcast broadcast = new Broadcast();
-            broadcast.setAssetData(picture.getImageData());
-            broadcast.setAssetKey(picture.getAssetKey());
-            broadcast.setToken(picture.getAssetToken());
-            broadcast.setOtrKey(picture.getOtrKey());
-            broadcast.setSha256(picture.getSha256());
-            broadcast.setSize(picture.getSize());
-            broadcast.setMimeType(picture.getMimeType());
-            broadcast.setUrl(url);
-            broadcast.setTitle(title);
-            broadcast.setMessageId(picture.getMessageId());
-            broadcast.setChannel(channel);
-
-            Service.storage.insertBroadcast(broadcast);
-        } catch (Exception e) {
-            Logger.error(e.getLocalizedMessage());
-        }
-    }
-
-    private void sendLink(String url, String title, Picture img, String botId) {
-        try {
-            WireClient client = repo.getWireClient(botId);
-            if (client != null)
-                client.sendLinkPreview(url, title, img);
-        } catch (Exception e) {
-            Logger.error("Bot: %s. Error: %s", botId, e.getMessage());
-        }
-    }
-
-    private void sendText(String messageId, String text, String botId) {
-        try {
-            WireClient client = repo.getWireClient(botId);
-            if (client != null)
-                client.sendText(text, 0, messageId);
-        } catch (Exception e) {
-            Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
-        }
-    }
-
-    private void sendPicture(Picture picture, String botId) {
-        try {
-            WireClient client = repo.getWireClient(botId);
-            if (client != null)
-                client.sendPicture(picture);
-        } catch (Exception e) {
-            Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
-        }
     }
 
     private Picture uploadPreview(WireClient client, String imgUrl) throws Exception {
@@ -268,35 +237,53 @@ public class Broadcaster {
         return preview;
     }
 
-    private String extractPagePreview(String url) throws IOException {
-        Connection con = Jsoup.connect(url);
-        Document doc = con.get();
+    private void broadcastText(String channelName, final TextMessage msg) throws SQLException {
+        final String messageId = msg.getMessageId();
+        final String text = msg.getText();
 
-        Elements metaOgImage = doc.select("meta[property=og:image]");
-        if (metaOgImage != null) {
-            return metaOgImage.attr("content");
+        for (final String botId : getSubscribers(channelName)) {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        WireClient client = repo.getWireClient(botId);
+                        if (client != null)
+                            client.sendText(text, 0, messageId);
+                    } catch (Exception e) {
+                        Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
+                    }
+                }
+            });
         }
-        return null;
+        Broadcast b = new Broadcast(channelName, msg);
+        Service.storage.insertBroadcast(b);
     }
 
-    private String extractPageTitle(String url) throws IOException {
-        Connection con = Jsoup.connect(url);
-        Document doc = con.get();
+    private void broadcastUrl(Channel channel, final TextMessage msg) throws Exception {
+        WireClient adminClient = repo.getWireClient(channel.admin);
 
-        Elements title = doc.select("meta[property=og:title]");
-        if (title != null) {
-            return title.attr("content");
-        }
-        return doc.title();
-    }
+        final String url = msg.getText();
+        final String title = UrlUtil.extractPageTitle(url);
+        final Picture preview = uploadPreview(adminClient, UrlUtil.extractPagePreview(url));
 
-    private void deleteMessage(String messageId, String botId) {
-        try {
-            WireClient client = repo.getWireClient(botId);
-            client.deleteMessage(messageId);
-        } catch (Exception e) {
-            Logger.error("Bot: %s. Error: %s", botId, e.getMessage());
+        for (final String botId : getSubscribers(channel.name)) {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        WireClient client = repo.getWireClient(botId);
+                        if (client != null)
+                            client.sendLinkPreview(url, title, preview);
+                    } catch (Exception e) {
+                        Logger.error("Bot: %s. Error: %s", botId, e.getMessage());
+                    }                }
+            });
         }
+
+        Broadcast broadcast = new Broadcast(channel.name, msg);
+        broadcast.setTitle(title);
+        broadcast.setUrl(url);
+        Service.storage.insertBroadcast(broadcast);
     }
 
     private ArrayList<String> getSubscribers(String channelName) {

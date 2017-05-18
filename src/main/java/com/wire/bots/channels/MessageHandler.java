@@ -25,9 +25,7 @@ import com.wire.bots.sdk.Logger;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.assets.Picture;
-import com.wire.bots.sdk.models.AssetKey;
-import com.wire.bots.sdk.models.ImageMessage;
-import com.wire.bots.sdk.models.TextMessage;
+import com.wire.bots.sdk.models.*;
 import com.wire.bots.sdk.server.model.Member;
 import com.wire.bots.sdk.server.model.NewBot;
 import com.wire.bots.sdk.server.model.User;
@@ -82,7 +80,7 @@ class MessageHandler extends MessageHandlerBase {
             Logger.info("New Subscriber for Channel: %s. Bot: %s", channel.name, newBot.id);
 
             if (!channel.muted) {
-                broadcaster.sendToAdminConv(channel.admin, "**New follower**");
+                broadcaster.sendToAdminConv(channel.admin, "**New follower has joined**");
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
@@ -138,10 +136,10 @@ class MessageHandler extends MessageHandlerBase {
                 }
             } else {
                 if (!processSubscriberCmd(text, client)) {
+                    Service.storage.insertMessage(botId, channel.name);
                     if (!channel.muted) {
                         broadcaster.sendToAdminConv(channel.admin, String.format("**Follower wrote:** _%s_", text));
                     }
-                    Service.storage.insertMessage(botId, channel.name);
                 }
             }
         } catch (Exception e) {
@@ -154,16 +152,82 @@ class MessageHandler extends MessageHandlerBase {
         try {
             String botId = client.getId();
             Channel channel = getChannel(botId);
+            byte[] bytes = client.downloadAsset(msg.getAssetKey(), msg.getAssetToken(), msg.getSha256(), msg.getOtrKey());
+            msg.setData(bytes);
 
             if (botId.equals(channel.admin)) {
                 Logger.info("New broadcast for Channel: %s", channel.name);
-                byte[] bytes = client.downloadAsset(msg.getAssetKey(), msg.getAssetToken(), msg.getSha256(), msg.getOtrKey());
-                broadcaster.broadcast(channel.name, msg, bytes);
+                broadcaster.broadcast(channel.name, msg);
             } else {
+                Service.storage.insertMessage(botId, channel.name);
                 if (!channel.muted)
                     broadcaster.sendToAdminConv(channel.admin, msg);
+            }
+        } catch (Exception e) {
+            Logger.error(e.getLocalizedMessage());
+        }
+    }
 
+    @Override
+    public void onAudio(WireClient client, AudioMessage msg) {
+        try {
+            String botId = client.getId();
+            Channel channel = getChannel(botId);
+            byte[] audio = client.downloadAsset(msg.getAssetKey(), msg.getAssetToken(), msg.getSha256(), msg.getOtrKey());
+            msg.setData(audio);
+
+            if (botId.equals(channel.admin)) {
+                broadcaster.broadcast(channel.name, msg);
+            } else {
                 Service.storage.insertMessage(botId, channel.name);
+                if (!channel.muted)
+                    broadcaster.sendToAdminConv(channel.admin, msg);
+            }
+        } catch (Exception e) {
+            Logger.error(e.getLocalizedMessage());
+        }
+    }
+
+    @Override
+    public void onVideo(WireClient client, VideoMessage msg) {
+        Logger.info("OnVideo: %s, H: %d W: %d, %dsec, %s, %s",
+                msg.getName(),
+                msg.getHeight(),
+                msg.getWidth(),
+                msg.getDuration(),
+                msg.getAssetKey(),
+                msg.getAssetToken());
+
+        try {
+            String botId = client.getId();
+            Channel channel = getChannel(botId);
+
+
+        } catch (Exception e) {
+            Logger.error(e.getLocalizedMessage());
+        }
+    }
+
+    @Override
+    public void onAttachment(WireClient client, AttachmentMessage msg) {
+        try {
+            String botId = client.getId();
+            Channel channel = getChannel(botId);
+
+            Logger.info("OnAttachment: %s, %s, %s",
+                    msg.getName(),
+                    msg.getAssetKey(),
+                    msg.getAssetToken());
+
+            byte[] data = client.downloadAsset(msg.getAssetKey(), msg.getAssetToken(), msg.getSha256(), msg.getOtrKey());
+            msg.setData(data);
+
+            if (botId.equals(channel.admin)) {
+                broadcaster.broadcast(channel.name, msg);
+            } else {
+                Service.storage.insertMessage(botId, channel.name);
+                if (!channel.muted)
+                    broadcaster.sendToAdminConv(channel.admin, msg);
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
@@ -175,8 +239,8 @@ class MessageHandler extends MessageHandlerBase {
         try {
             Channel channel = getChannel(botId);
             Service.storage.removeSubscriber(botId);
-            broadcaster.sendToAdminConv(channel.admin, "**Follower left**");
-            Logger.info("Subscriber left from Channel: %s. Bot: %s", channel.name, botId);
+            broadcaster.sendToAdminConv(channel.admin, "**Follower has left**");
+            Logger.info("Subscriber has left from Channel: %s. Bot: %s", channel.name, botId);
         } catch (Exception e) {
             Logger.error(e.getMessage());
         }
@@ -194,7 +258,7 @@ class MessageHandler extends MessageHandlerBase {
                 Service.storage.removeSubscriber(botId);
                 Logger.info("Subscriber left from Channel: %s. Bot: %s", channel.name, botId);
                 if (!channel.muted)
-                    broadcaster.sendToAdminConv(channel.admin, "**Follower left**");
+                    broadcaster.sendToAdminConv(channel.admin, "**Follower has left**");
             }
         } catch (Exception e) {
             Logger.error(e.getMessage());
@@ -220,6 +284,11 @@ class MessageHandler extends MessageHandlerBase {
         } catch (Exception e) {
             Logger.error(e.getMessage());
         }
+    }
+
+    @Override
+    public void onEditText(WireClient client, TextMessage msg) {
+        onText(client, msg);
     }
 
     private boolean processSubscriberCmd(String cmd, WireClient client) throws Exception {

@@ -17,6 +17,9 @@
 //
 package com.wire.bots.channels.model;
 
+import com.wire.bots.sdk.models.MessageAssetBase;
+import com.wire.bots.sdk.models.TextMessage;
+
 public class Broadcast {
     private int id;
     private String text;
@@ -32,6 +35,27 @@ public class Broadcast {
     private byte[] assetData;
     private String messageId;
     private String channel;
+
+    public Broadcast() {
+    }
+
+    public Broadcast(String channel, MessageAssetBase asset) {
+        setChannel(channel);
+        setMessageId(asset.getMessageId());
+        setAssetData(asset.getData());
+        setAssetKey(asset.getAssetKey());
+        setToken(asset.getAssetToken());
+        setOtrKey(asset.getOtrKey());
+        setSha256(asset.getSha256());
+        setSize(asset.getSize());
+        setMimeType(asset.getMimeType());
+    }
+
+    public Broadcast(String channel, TextMessage text) {
+        setChannel(channel);
+        setText(text.getText());
+        setMessageId(text.getMessageId());
+    }
 
     public void setId(int id) {
         this.id = id;

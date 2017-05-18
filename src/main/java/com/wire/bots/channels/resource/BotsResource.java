@@ -65,6 +65,7 @@ public class BotsResource {
         if (!Util.compareTokens(auth, channel.token)) {
             Logger.warning("Invalid Authorization for Channel: %s.", channelName);
             return Response.
+                    ok("Invalid Authorization: " + auth).
                     status(403).
                     build();
         }

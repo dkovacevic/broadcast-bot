@@ -27,6 +27,7 @@ public class AdminResource {
         if (!auth.equals(config.getAppSecret())) {
             Logger.warning("Admin: Invalid Authorization.");
             return Response.
+                    ok("Invalid Authorization: " + auth).
                     status(403).
                     build();
         }
