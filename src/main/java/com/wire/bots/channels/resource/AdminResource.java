@@ -27,7 +27,7 @@ public class AdminResource {
         if (!auth.equals(config.getAppSecret())) {
             Logger.warning("Admin: Invalid Authorization.");
             return Response.
-                    ok("Invalid Authorization: " + auth).
+                    ok("Invalid Authorization: " + auth + "\n").
                     status(403).
                     build();
         }
@@ -42,7 +42,7 @@ public class AdminResource {
         } catch (SQLException e) {
             Logger.warning(e.getMessage());
             return Response.
-                    ok("Channel named: " + channelName + " already exists").
+                    ok("Channel named: " + channelName + " already exists\n").
                     status(405).
                     build();
         }
@@ -74,7 +74,7 @@ public class AdminResource {
         if (channel == null) {
             Logger.warning("Channel does not exist");
             return Response.
-                    ok("Channel does not exist").
+                    ok("Channel does not exist\n").
                     status(404).
                     build();
         }
@@ -82,7 +82,7 @@ public class AdminResource {
         if (!channel.token.equals(admin.token) || !channel.origin.equals(admin.origin)) {
             Logger.warning("Wrong token or not the owner");
             return Response.
-                    ok("Wrong token or not the owner").
+                    ok("Wrong token or not the owner\n").
                     status(405).
                     build();
         }
@@ -92,7 +92,7 @@ public class AdminResource {
         Service.storage.deleteBots(channelName);
 
         return Response.
-                ok("Channel deleted").
+                ok("Channel deleted\n").
                 status(201).
                 build();
     }

@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.UUID;
 
 public class Broadcaster {
     private final ClientRepo repo;
@@ -40,6 +41,28 @@ public class Broadcaster {
 
     public Broadcaster(ClientRepo repo) {
         this.repo = repo;
+    }
+
+    public void broadcast(String channelName, final String text) throws Exception {
+        for (final String botId : getSubscribers(channelName)) {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        WireClient client = repo.getWireClient(botId);
+                        if (client != null)
+                            client.sendText(text);
+                    } catch (Exception e) {
+                        Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
+                    }
+                }
+            });
+        }
+        Broadcast b = new Broadcast();
+        b.setMessageId(UUID.randomUUID().toString());
+        b.setChannel(channelName);
+        b.setText(text);
+        Service.storage.insertBroadcast(b);
     }
 
     public void broadcast(Channel channel, TextMessage msg) throws Exception {
@@ -107,7 +130,8 @@ public class Broadcaster {
                             client.sendVideo(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
                     } catch (Exception e) {
                         Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
-                    }                }
+                    }
+                }
             });
         }
         Service.storage.insertBroadcast(new Broadcast(channelName, msg));
@@ -276,7 +300,8 @@ public class Broadcaster {
                             client.sendLinkPreview(url, title, preview);
                     } catch (Exception e) {
                         Logger.error("Bot: %s. Error: %s", botId, e.getMessage());
-                    }                }
+                    }
+                }
             });
         }
 

@@ -40,7 +40,15 @@ public class MessageResource extends MessageResourceBase {
                     build();
         }
 
-        handleMessage(inbound, repo.getWireClient(bot));
+        WireClient wireClient = repo.getWireClient(bot);
+        if (wireClient == null) {
+            return Response.
+                    ok().
+                    status(410).
+                    build();
+        }
+
+        handleMessage(inbound, wireClient);
 
         return Response.
                 ok().

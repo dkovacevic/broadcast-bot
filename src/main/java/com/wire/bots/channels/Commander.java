@@ -1,6 +1,9 @@
 package com.wire.bots.channels;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wire.bots.channels.model.Channel;
+import com.wire.bots.channels.model.Message;
 import com.wire.bots.sdk.WireClient;
 
 public class Commander {
@@ -17,7 +20,8 @@ public class Commander {
                     "`/unmute`       **Unmute** all incoming messages from Subscribers\n" +
                     "`/allow @<username>` **White list** user with this @username\n" +
                     "`/block @<username>` **Black list** user with this @username\n" +
-                    "`/public`            Clear White and Black lists. Anybody can join\n" +
+                    "`/public`       Clear White and Black lists. Anybody can join\n" +
+                    "`/curl`         Show `curl` command for broadcasting\n" +
                     "`/stats`        Show some **statistics**: #posts, #subscribers, #feedbacks ...";
 
             adminClient.sendText(h);
@@ -63,6 +67,21 @@ public class Commander {
         if (cmd.equals("/public")) {
             Service.storage.clearWhitelist(channelName);
             adminClient.sendText("Channel made **public** again");
+            return ret;
+        }
+        if (cmd.equalsIgnoreCase("/curl")) {
+            Channel channel = Service.storage.getChannel(channelName);
+            Message message = new Message();
+            message.setText("Hi there!");
+            String obj = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(message);
+
+            String msg = String.format("```\ncurl -ikXPOST https://<domain>/channels/%s/broadcast -d'%s' " +
+                            "-H'Authorization:%s' " +
+                            "-H'Content-Type:application/json'\n```",
+                    channelName,
+                    obj,
+                    channel.token);
+            adminClient.sendText(msg);
             return ret;
         }
         if (cmd.equalsIgnoreCase("/stats")) {
