@@ -24,7 +24,7 @@ public class AdminResource {
                            @PathParam("name") String channelName,
                            Admin admin) throws Exception {
 
-        if (!auth.equals(config.getAppSecret())) {
+        if (!config.getAppSecret().equals(auth)) {
             Logger.warning("Admin: Invalid Authorization.");
             return Response.
                     ok("Invalid Authorization: " + auth + "\n").
