@@ -22,6 +22,11 @@ spec:
             limits:
               memory: "500Mi"
 
+          ports:
+            - name: web
+              containerPort: 8080
+              protocol: TCP
+
           env:
             - name: AUTH_TOKEN
               valueFrom:
@@ -83,6 +88,4 @@ spec:
       port: 443
       protocol: TCP
 
-    - name: http
-      port: 8080
-      protocol: TCP
+
