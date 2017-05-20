@@ -26,11 +26,17 @@ public class Config extends com.wire.bots.sdk.Configuration {
     @NotNull
     private String appSecret;
 
+    private String host;
+
     public String getDatabase() {
         return database;
     }
 
     public String getAppSecret() {
         return appSecret;
+    }
+
+    public String getHost() {
+        return host;
     }
 }

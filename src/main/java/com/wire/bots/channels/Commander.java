@@ -75,9 +75,10 @@ public class Commander {
             message.setText("Hi there!");
             String obj = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(message);
 
-            String msg = String.format("```\ncurl -ikXPOST https://<domain>/channels/%s/broadcast -d'%s' " +
+            String msg = String.format("```\ncurl -ikXPOST https://%s/channels/%s/broadcast -d'%s' " +
                             "-H'Authorization:%s' " +
                             "-H'Content-Type:application/json'\n```",
+                    Service.CONFIG.getHost(),
                     channelName,
                     obj,
                     channel.token);

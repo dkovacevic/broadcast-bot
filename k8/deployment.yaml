@@ -53,6 +53,7 @@ spec:
             - "-Ddw.server.applicationConnectors[1].keyStorePassword=$(KEYSTORE_PASSWORD)"
             - "-Ddw.auth=$(AUTH_TOKEN)"
             - "-Ddw.appSecret=$(APP_SECRET)"
+            - "-Ddw.host=35.187.36.97"
             - "-jar"
             - "channel.jar"
             - "server"
