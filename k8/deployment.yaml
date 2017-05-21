@@ -27,6 +27,11 @@ spec:
               containerPort: 8080
               protocol: TCP
 
+          ports:
+            - name: admin
+              containerPort: 8081
+              protocol: TCP
+
           env:
             - name: AUTH_TOKEN
               valueFrom:
