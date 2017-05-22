@@ -34,7 +34,7 @@ public class Storage {
 
     private final String path;
 
-    public Storage(String path) {
+    Storage(String path) {
         this.path = path;
 
         try {
@@ -104,7 +104,7 @@ public class Storage {
         }
     }
 
-    public int insertMessage(String botId, String channel) throws SQLException {
+    int insertMessage(String botId, String channel) throws SQLException {
         try (Connection connection = getConnection()) {
             PreparedStatement stm = connection.prepareStatement("INSERT INTO Message " +
                     "(BotId, Channel, Time) " +
@@ -116,7 +116,7 @@ public class Storage {
         }
     }
 
-    public int getMessageCount(String channel) throws SQLException {
+    int getMessageCount(String channel) throws SQLException {
         try (Connection connection = getConnection()) {
             PreparedStatement stm = connection.prepareStatement("SELECT count(*) AS Count FROM Message WHERE Channel = ?");
             stm.setString(1, channel);
@@ -128,7 +128,7 @@ public class Storage {
         return 0;
     }
 
-    public int insertBroadcast(Broadcast broadcast) throws SQLException {
+    int insertBroadcast(Broadcast broadcast) throws SQLException {
         try (Connection connection = getConnection()) {
             String cmd = "INSERT INTO Broadcast " +
                     "(Text, Asset, Url, Title, Asset_key, Token, Otr_key, Mime_type, Size , Sha256, Time, MessageId, Channel) " +
@@ -157,7 +157,7 @@ public class Storage {
         }
     }
 
-    public ArrayList<Broadcast> getBroadcasts(String channel, int from, int limit) throws SQLException {
+    ArrayList<Broadcast> getBroadcasts(String channel, int from, int limit) throws SQLException {
         ArrayList<Broadcast> ret = new ArrayList<>();
         try (Connection connection = getConnection()) {
             PreparedStatement stm = connection.prepareStatement(
@@ -189,7 +189,7 @@ public class Storage {
         return ret;
     }
 
-    public int getLastBroadcast(String channel) throws SQLException {
+    int getLastBroadcast(String channel) throws SQLException {
         try (Connection connection = getConnection()) {
             PreparedStatement stm = connection.prepareStatement(
                     "SELECT MAX(Id) as Last FROM Broadcast WHERE Channel = ?");
@@ -203,7 +203,7 @@ public class Storage {
         return Integer.MAX_VALUE;
     }
 
-    public int deleteBroadcast(String messageId) throws SQLException {
+    int deleteBroadcast(String messageId) throws SQLException {
         try (Connection connection = getConnection()) {
             String cmd = "DELETE FROM Broadcast WHERE messageId = ?";
             PreparedStatement stm = connection.prepareStatement(cmd);
@@ -228,7 +228,7 @@ public class Storage {
         }
     }
 
-    public void updateBot(String botId, String param, int value) throws SQLException {
+    void updateBot(String botId, String param, int value) throws SQLException {
         try (Connection connection = getConnection()) {
             String cmd = String.format("UPDATE Bots " +
                     "SET %s = ? " +
@@ -240,7 +240,7 @@ public class Storage {
         }
     }
 
-    public ArrayList<Subscriber> getSubscribers(String channelName) throws SQLException {
+    ArrayList<Subscriber> getSubscribers(String channelName) throws SQLException {
         ArrayList<Subscriber> ret = new ArrayList<>();
         try (Connection conn = getConnection()) {
             PreparedStatement stm = conn.prepareStatement("SELECT * FROM Bots " +
@@ -259,7 +259,7 @@ public class Storage {
         }
     }
 
-    public int getLast(String botId) throws SQLException {
+    int getLast(String botId) throws SQLException {
         try (Connection conn = getConnection()) {
             PreparedStatement stm = conn.prepareStatement("SELECT Last FROM Bots WHERE botId = ?");
             stm.setString(1, botId);
@@ -297,7 +297,7 @@ public class Storage {
         }
     }
 
-    public void updateChannel(String channelName, String param, int value) throws SQLException {
+    void updateChannel(String channelName, String param, int value) throws SQLException {
         try (Connection connection = getConnection()) {
             String cmd = String.format("UPDATE Channel " +
                     "SET %s = ? " +
@@ -329,7 +329,7 @@ public class Storage {
         return ret;
     }
 
-    public String getChannelName(String botId) throws SQLException {
+    String getChannelName(String botId) throws SQLException {
         try (Connection conn = getConnection()) {
             PreparedStatement stm = conn.prepareStatement("SELECT Channel FROM Bots WHERE BotId = ?");
             stm.setString(1, botId);
@@ -341,7 +341,7 @@ public class Storage {
         }
     }
 
-    public boolean removeSubscriber(String botId) throws SQLException {
+    boolean removeSubscriber(String botId) throws SQLException {
         try (Connection conn = getConnection()) {
             PreparedStatement stm = conn.prepareStatement("DELETE FROM Bots WHERE BotId = ?");
             stm.setString(1, botId);
@@ -369,7 +369,7 @@ public class Storage {
         }
     }
 
-    public int insertWhitelist(String channelName, String handle, State state) throws SQLException {
+    int insertWhitelist(String channelName, String handle, State state) throws SQLException {
         try (Connection connection = getConnection()) {
             String cmd = "REPLACE INTO Whitelist " +
                     "(Channel, Handle, State) " +
@@ -383,7 +383,7 @@ public class Storage {
         }
     }
 
-    public ArrayList<String> getWhitelist(String channelName, State state) throws SQLException {
+    ArrayList<String> getWhitelist(String channelName, State state) throws SQLException {
         ArrayList<String> ret = new ArrayList<>();
         try (Connection conn = getConnection()) {
             PreparedStatement stm = conn.prepareStatement(
@@ -406,7 +406,7 @@ public class Storage {
      * @return number of rows deleted
      * @throws SQLException
      */
-    public int clearWhitelist(String channelName) throws SQLException {
+    int clearWhitelist(String channelName) throws SQLException {
         try (Connection connection = getConnection()) {
             PreparedStatement stm = connection.prepareStatement(
                     "DELETE FROM Whitelist " +

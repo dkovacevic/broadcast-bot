@@ -15,5 +15,5 @@ server:
   requestLog:
     appenders: []
 
-cryptoDir: '/var/lib/channel/crypto'              # path to dir where to story crypto box files
-database: '/var/lib/channel/crypto/channel.db'  # path to db file
+cryptoDir: '/var/lib/channel/crypto'              # path to dir where to store crypto box files
+database:  '/var/lib/channel/crypto/channel.db'  # path to db file

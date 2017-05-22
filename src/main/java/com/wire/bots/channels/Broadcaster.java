@@ -27,6 +27,8 @@ import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.assets.Picture;
 import com.wire.bots.sdk.models.*;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -65,7 +67,7 @@ public class Broadcaster {
         Service.storage.insertBroadcast(b);
     }
 
-    public void broadcast(Channel channel, TextMessage msg) throws Exception {
+    void broadcast(Channel channel, TextMessage msg) throws Exception {
         if (msg.getText().startsWith("http")) {
             broadcastUrl(channel, msg);
         } else {
@@ -73,7 +75,7 @@ public class Broadcaster {
         }
     }
 
-    public void broadcast(String channelName, ImageMessage msg) throws Exception {
+    void broadcast(String channelName, ImageMessage msg) throws Exception {
         final Picture picture = new Picture(msg.getData(), msg.getMimeType());
         picture.setSize((int) msg.getSize());
         picture.setWidth(msg.getWidth());
@@ -101,7 +103,7 @@ public class Broadcaster {
         Service.storage.insertBroadcast(new Broadcast(channelName, msg));
     }
 
-    public void broadcast(String channelName, final AudioMessage msg) throws Exception {
+    void broadcast(String channelName, final AudioMessage msg) throws Exception {
         for (final String botId : getSubscribers(channelName)) {
             executor.execute(new Runnable() {
                 @Override
@@ -119,7 +121,7 @@ public class Broadcaster {
         Service.storage.insertBroadcast(new Broadcast(channelName, msg));
     }
 
-    public void broadcast(String channelName, final VideoMessage msg) throws Exception {
+    void broadcast(String channelName, final VideoMessage msg) throws Exception {
         for (final String botId : getSubscribers(channelName)) {
             executor.execute(new Runnable() {
                 @Override
@@ -127,7 +129,12 @@ public class Broadcaster {
                     try {
                         WireClient client = repo.getWireClient(botId);
                         if (client != null)
-                            client.sendVideo(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
+                            client.sendVideo(msg.getData(),
+                                    msg.getName(),
+                                    msg.getMimeType(),
+                                    msg.getDuration(),
+                                    msg.getHeight(),
+                                    msg.getWidth());
                     } catch (Exception e) {
                         Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
                     }
@@ -137,11 +144,7 @@ public class Broadcaster {
         Service.storage.insertBroadcast(new Broadcast(channelName, msg));
     }
 
-    public void broadcast(String name, AttachmentMessage msg) {
-
-    }
-
-    public void followBack(final WireClient client, int limit) throws SQLException {
+    void followBack(final WireClient client, int limit) throws SQLException {
         final String botId = client.getId();
         String channelName = Service.storage.getChannelName(botId);
         int last = Service.storage.getLast(botId);
@@ -191,7 +194,7 @@ public class Broadcaster {
         });
     }
 
-    public void revokeBroadcast(String channelName, final String messageId) throws SQLException {
+    void revokeBroadcast(String channelName, final String messageId) throws SQLException {
         Service.storage.deleteBroadcast(messageId);
 
         for (final String botId : getSubscribers(channelName)) {
@@ -209,7 +212,7 @@ public class Broadcaster {
         }
     }
 
-    public void sendToAdminConv(String adminBot, ImageMessage msg) throws Exception {
+    void sendToAdminConv(String adminBot, ImageMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
 
         Picture picture = new Picture();
@@ -226,28 +229,42 @@ public class Broadcaster {
         adminClient.sendPicture(picture);
     }
 
-    public void sendToAdminConv(String adminBot, AudioMessage msg) throws Exception {
+    void sendToAdminConv(String adminBot, AudioMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
 
         adminClient.sendText("**Follower has sent:**");
         adminClient.sendAudio(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
     }
 
-    public void sendToAdminConv(String adminBot, VideoMessage msg) throws Exception {
+    void sendToAdminConv(String adminBot, VideoMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
 
         adminClient.sendText("**Follower has sent:**");
-        adminClient.sendVideo(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
+        adminClient.sendVideo(msg.getData(),
+                msg.getName(),
+                msg.getMimeType(),
+                msg.getDuration(),
+                msg.getHeight(),
+                msg.getWidth());
     }
 
-    public void sendToAdminConv(String adminBot, AttachmentMessage msg) throws Exception {
+    void sendToAdminConv(String adminBot, AttachmentMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
 
         adminClient.sendText("**Follower has sent:**");
-        adminClient.sendVideo(msg.getData(), msg.getName(), msg.getMimeType(), 0);
+
+        // save it locally
+        File file = new File(Service.CONFIG.getCryptoDir(), msg.getName());
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(msg.getData());
+        }
+
+        adminClient.sendFile(file, msg.getMimeType());
+
+        file.delete();
     }
 
-    public void sendToAdminConv(String adminBot, String text) throws Exception {
+    void sendToAdminConv(String adminBot, String text) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
         adminClient.sendText(text);
     }

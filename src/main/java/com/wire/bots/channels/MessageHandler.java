@@ -170,10 +170,19 @@ class MessageHandler extends MessageHandlerBase {
 
     @Override
     public void onAudio(WireClient client, AudioMessage msg) {
+        Logger.info("OnAudio: %s, %dsec, %s, %s",
+                msg.getName(),
+                msg.getDuration(),
+                msg.getAssetKey(),
+                msg.getAssetToken());
+
         try {
             String botId = client.getId();
             Channel channel = getChannel(botId);
-            byte[] audio = client.downloadAsset(msg.getAssetKey(), msg.getAssetToken(), msg.getSha256(), msg.getOtrKey());
+            byte[] audio = client.downloadAsset(msg.getAssetKey(),
+                    msg.getAssetToken(),
+                    msg.getSha256(),
+                    msg.getOtrKey());
             msg.setData(audio);
 
             if (botId.equals(channel.admin)) {
@@ -201,8 +210,19 @@ class MessageHandler extends MessageHandlerBase {
         try {
             String botId = client.getId();
             Channel channel = getChannel(botId);
+            byte[] video = client.downloadAsset(msg.getAssetKey(),
+                    msg.getAssetToken(),
+                    msg.getSha256(),
+                    msg.getOtrKey());
+            msg.setData(video);
 
-
+            if (botId.equals(channel.admin)) {
+                broadcaster.broadcast(channel.name, msg);
+            } else {
+                Service.storage.insertMessage(botId, channel.name);
+                if (!channel.muted)
+                    broadcaster.sendToAdminConv(channel.admin, msg);
+            }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
         }
@@ -219,11 +239,14 @@ class MessageHandler extends MessageHandlerBase {
                     msg.getAssetKey(),
                     msg.getAssetToken());
 
-            byte[] data = client.downloadAsset(msg.getAssetKey(), msg.getAssetToken(), msg.getSha256(), msg.getOtrKey());
+            byte[] data = client.downloadAsset(msg.getAssetKey(),
+                    msg.getAssetToken(),
+                    msg.getSha256(),
+                    msg.getOtrKey());
             msg.setData(data);
 
             if (botId.equals(channel.admin)) {
-                broadcaster.broadcast(channel.name, msg);
+                //broadcaster.broadcast(channel.name, msg);
             } else {
                 Service.storage.insertMessage(botId, channel.name);
                 if (!channel.muted)
@@ -325,7 +348,7 @@ class MessageHandler extends MessageHandlerBase {
         }
     }
 
-    protected Channel getChannel(String botId) throws SQLException {
+    private Channel getChannel(String botId) throws SQLException {
         String channelName = Service.storage.getChannelName(botId);
         return Service.storage.getChannel(channelName);
     }

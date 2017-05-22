@@ -29,7 +29,7 @@ import io.dropwizard.setup.Environment;
 
 public class Service extends Server<Config> {
     public static Storage storage;
-    public static Config CONFIG;
+    static Config CONFIG;
 
     public static void main(String[] args) throws Exception {
         new Service().run(args);
