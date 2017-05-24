@@ -172,7 +172,7 @@ class MessageHandler extends MessageHandlerBase {
     public void onAudio(WireClient client, AudioMessage msg) {
         Logger.info("OnAudio: %s, %dsec, %s, %s",
                 msg.getName(),
-                msg.getDuration(),
+                msg.getDuration() / 1000,
                 msg.getAssetKey(),
                 msg.getAssetToken());
 
@@ -203,7 +203,7 @@ class MessageHandler extends MessageHandlerBase {
                 msg.getName(),
                 msg.getHeight(),
                 msg.getWidth(),
-                msg.getDuration(),
+                msg.getDuration() / 1000,
                 msg.getAssetKey(),
                 msg.getAssetToken());
 
