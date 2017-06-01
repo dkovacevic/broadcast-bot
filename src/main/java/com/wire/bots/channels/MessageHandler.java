@@ -35,7 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 class MessageHandler extends MessageHandlerBase {
-    protected final Broadcaster broadcaster;
+    private final Broadcaster broadcaster;
 
     MessageHandler(ClientRepo repo) {
         broadcaster = new Broadcaster(repo);

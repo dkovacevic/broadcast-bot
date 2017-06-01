@@ -50,10 +50,6 @@ public class BotsResource {
                            @PathParam("name") String channelName,
                            NewBot newBot) throws Exception {
 
-        //todo: hack - remove once BE adds handles
-        newBot.origin.handle = newBot.origin.name.toLowerCase();
-        // hack
-
         Channel channel = Service.storage.getChannel(channelName);
         if (channel == null) {
             Logger.warning("Unknown Channel: %s.", channelName);
