@@ -30,9 +30,9 @@ import com.wire.bots.sdk.server.model.Member;
 import com.wire.bots.sdk.server.model.NewBot;
 import com.wire.bots.sdk.server.model.User;
 
+import java.io.IOException;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 class MessageHandler extends MessageHandlerBase {
     private final Broadcaster broadcaster;
@@ -80,7 +80,7 @@ class MessageHandler extends MessageHandlerBase {
             Logger.info("New Subscriber for Channel: %s. Bot: %s", channel.name, newBot.id);
 
             if (!channel.muted) {
-                broadcaster.sendToAdminConv(channel.admin, "**New follower has joined**");
+                broadcaster.sendToAdminConv(channel.admin, String.format("@%s has joined", origin.handle));
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
@@ -138,7 +138,7 @@ class MessageHandler extends MessageHandlerBase {
                 if (!processSubscriberCmd(text, client)) {
                     Service.storage.insertMessage(botId, channel.name);
                     if (!channel.muted) {
-                        broadcaster.sendToAdminConv(channel.admin, String.format("**Follower wrote:** _%s_", text));
+                        broadcaster.sendToAdminConv(channel.admin, msg);
                     }
                 }
             }
@@ -280,8 +280,10 @@ class MessageHandler extends MessageHandlerBase {
             if (members.isEmpty()) {
                 Service.storage.removeSubscriber(botId);
                 Logger.info("Subscriber left from Channel: %s. Bot: %s", channel.name, botId);
-                if (!channel.muted)
-                    broadcaster.sendToAdminConv(channel.admin, "**Follower has left**");
+                if (!channel.muted) {
+                    String userName = getUserName(client, members.iterator().next().id);
+                    broadcaster.sendToAdminConv(channel.admin, String.format("@%s has left", userName));
+                }
             }
         } catch (Exception e) {
             Logger.error(e.getMessage());
@@ -295,10 +297,11 @@ class MessageHandler extends MessageHandlerBase {
             Channel channel = getChannel(botId);
 
             if (msg.hasReaction()) {
-                if (!channel.muted) {
-                    broadcaster.sendToAdminConv(channel.admin, "**Got one like!**");
-                }
                 Service.storage.insertMessage(botId, channel.name);
+                if (!channel.muted) {
+                    String userName = getUserName(client, userId);
+                    broadcaster.sendToAdminConv(channel.admin, String.format("@%s liked your post", userName));
+                }
             }
 
             if (msg.hasDeleted() && botId.equals(channel.admin)) {
@@ -351,5 +354,10 @@ class MessageHandler extends MessageHandlerBase {
     private Channel getChannel(String botId) throws SQLException {
         String channelName = Service.storage.getChannelName(botId);
         return Service.storage.getChannel(channelName);
+    }
+
+    private String getUserName(WireClient client, String userId) throws IOException {
+        Collection<User> users = client.getUsers(Collections.singletonList(userId));
+        return users.iterator().next().handle;
     }
 }

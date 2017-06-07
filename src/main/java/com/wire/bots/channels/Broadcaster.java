@@ -26,16 +26,15 @@ import com.wire.bots.sdk.Logger;
 import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.assets.Picture;
 import com.wire.bots.sdk.models.*;
+import com.wire.bots.sdk.server.model.User;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.UUID;
 
 public class Broadcaster {
     private final ClientRepo repo;
@@ -212,8 +211,17 @@ public class Broadcaster {
         }
     }
 
+
+    void sendToAdminConv(String adminBot, TextMessage msg) throws Exception {
+        WireClient adminClient = repo.getWireClient(adminBot);
+        String userName = getUserName(adminClient, msg.getUserId());
+
+        adminClient.sendText(String.format("@%s wrote: _%s_", userName, msg.getText()));
+    }
+
     void sendToAdminConv(String adminBot, ImageMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
+        String userName = getUserName(adminClient, msg.getUserId());
 
         Picture picture = new Picture();
         picture.setMimeType(msg.getMimeType());
@@ -225,21 +233,23 @@ public class Broadcaster {
         picture.setOtrKey(msg.getOtrKey());
         picture.setSha256(msg.getSha256());
 
-        adminClient.sendText("**Follower has sent:**");
+        adminClient.sendText(String.format("@%s has sent:", userName));
         adminClient.sendPicture(picture);
     }
 
     void sendToAdminConv(String adminBot, AudioMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
+        String userName = getUserName(adminClient, msg.getUserId());
 
-        adminClient.sendText("**Follower has sent:**");
+        adminClient.sendText(String.format("@%s has sent:", userName));
         adminClient.sendAudio(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
     }
 
     void sendToAdminConv(String adminBot, VideoMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
+        String userName = getUserName(adminClient, msg.getUserId());
 
-        adminClient.sendText("**Follower has sent:**");
+        adminClient.sendText(String.format("@%s has sent:", userName));
         adminClient.sendVideo(msg.getData(),
                 msg.getName(),
                 msg.getMimeType(),
@@ -250,8 +260,9 @@ public class Broadcaster {
 
     void sendToAdminConv(String adminBot, AttachmentMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
+        String userName = getUserName(adminClient, msg.getUserId());
 
-        adminClient.sendText("**Follower has sent:**");
+        adminClient.sendText(String.format("@%s has sent:", userName));
 
         // save it locally
         File file = new File(Service.CONFIG.getCryptoDir(), msg.getName());
@@ -355,5 +366,10 @@ public class Broadcaster {
             Logger.error(e.getMessage());
         }
         return ret;
+    }
+
+    private String getUserName(WireClient client, String userId) throws IOException {
+        Collection<User> users = client.getUsers(Collections.singletonList(userId));
+        return users.iterator().next().handle;
     }
 }
