@@ -22,11 +22,14 @@ import com.wire.bots.channels.model.Channel;
 import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.assets.Picture;
+import com.wire.bots.sdk.factories.StorageFactory;
 import com.wire.bots.sdk.models.*;
 import com.wire.bots.sdk.server.model.User;
+import com.wire.bots.sdk.storage.Storage;
 import com.wire.bots.sdk.tools.Logger;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
@@ -34,21 +37,23 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 class Broadcaster {
     private final ClientRepo repo;
+    private final StorageFactory storageFactory;
     private final ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(20);
 
-    Broadcaster(ClientRepo repo) {
+    Broadcaster(ClientRepo repo, StorageFactory storageFactory) {
         this.repo = repo;
+        this.storageFactory = storageFactory;
     }
 
     void broadcast(Channel channel, TextMessage msg) throws Exception {
         if (msg.getText().startsWith("http")) {
             broadcastUrl(channel, msg);
         } else {
-            broadcastText(msg);
+            broadcastText(channel, msg);
         }
     }
 
-    void broadcast(ImageMessage msg) throws Exception {
+    void broadcast(Channel channel, ImageMessage msg) throws Exception {
         final Picture picture = new Picture(msg.getData(), msg.getMimeType());
         picture.setSize((int) msg.getSize());
         picture.setWidth(msg.getWidth());
@@ -59,7 +64,7 @@ class Broadcaster {
         picture.setSha256(msg.getSha256());
         picture.setMessageId(msg.getMessageId());
 
-        for (final WireClient client : repo.listClients()) {
+        for (final WireClient client : getSubscribers(channel)) {
             executor.execute(() -> {
                 try {
                     client.sendPicture(picture);
@@ -70,8 +75,8 @@ class Broadcaster {
         }
     }
 
-    void broadcast(final AudioMessage msg) throws Exception {
-        for (final WireClient client : repo.listClients()) {
+    void broadcast(Channel channel, final AudioMessage msg) throws Exception {
+        for (final WireClient client : getSubscribers(channel)) {
             executor.execute(() -> {
                 try {
                     client.sendAudio(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
@@ -82,8 +87,8 @@ class Broadcaster {
         }
     }
 
-    void broadcast(final VideoMessage msg) throws Exception {
-        for (final WireClient client : repo.listClients()) {
+    void broadcast(Channel channel, final VideoMessage msg) throws Exception {
+        for (final WireClient client : getSubscribers(channel)) {
             executor.execute(() -> {
                 try {
                     client.sendVideo(msg.getData(),
@@ -99,8 +104,8 @@ class Broadcaster {
         }
     }
 
-    void revokeBroadcast(final String messageId) throws Exception {
-        for (final WireClient client : repo.listClients()) {
+    void revokeBroadcast(Channel channel, final String messageId) throws Exception {
+        for (final WireClient client : getSubscribers(channel)) {
             executor.execute(() -> {
                 try {
                     client.deleteMessage(messageId);
@@ -172,11 +177,11 @@ class Broadcaster {
         return preview;
     }
 
-    private void broadcastText(final TextMessage msg) throws Exception {
+    private void broadcastText(Channel channel, final TextMessage msg) throws Exception {
         final String messageId = msg.getMessageId();
         final String text = msg.getText();
 
-        for (final WireClient client : repo.listClients()) {
+        for (final WireClient client : getSubscribers(channel)) {
             executor.execute(() -> {
                 try {
                     client.sendText(text, 0, messageId);
@@ -194,7 +199,7 @@ class Broadcaster {
         final String title = UrlUtil.extractPageTitle(url);
         final Picture preview = uploadPreview(adminClient, UrlUtil.extractPagePreview(url));
 
-        for (final WireClient client : repo.listClients()) {
+        for (final WireClient client : getSubscribers(channel)) {
             executor.execute(() -> {
                 try {
                     client.sendLinkPreview(url, title, preview);
@@ -203,6 +208,18 @@ class Broadcaster {
                 }
             });
         }
+    }
+
+    private ArrayList<WireClient> getSubscribers(Channel channel) throws Exception {
+        ArrayList<WireClient> ret = new ArrayList<>();
+        for (WireClient client : repo.listClients()) {
+            String botId = client.getId();
+            Storage storage = storageFactory.create(botId);
+            String id = storage.readFile(".channel");
+            if (channel.id.equalsIgnoreCase(id))
+                ret.add(client);
+        }
+        return ret;
     }
 
     private String getUserName(WireClient client, String userId) throws IOException {

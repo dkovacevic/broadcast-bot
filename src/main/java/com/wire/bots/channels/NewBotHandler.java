@@ -10,9 +10,11 @@ import java.util.ArrayList;
 
 public class NewBotHandler {
     private final Config config;
+    private final Broadcaster broadcaster;
 
-    NewBotHandler(Config config) {
+    NewBotHandler(Config config, Broadcaster broadcaster) {
         this.config = config;
+        this.broadcaster = broadcaster;
     }
 
     public boolean onNewBot(String channelName, NewBot newBot) {
@@ -20,9 +22,11 @@ public class NewBotHandler {
             Channel channel = config.getChannels().get(channelName);
 
             ArrayList<String> whitelist = channel.whitelist;
-            if (!whitelist.isEmpty() && !whitelist.contains(newBot.origin.handle)) {
-                Logger.warning("Rejecting NewBot. Not Whitelisted");
-                return false;
+            if (whitelist != null && !whitelist.isEmpty()) {
+                if (!whitelist.contains(newBot.origin.handle)) {
+                    Logger.warning("Rejecting NewBot. Not Whitelisted. %s", newBot.origin.handle);
+                    return false;
+                }
             }
 
             for (Member member : newBot.conversation.members) {
@@ -40,8 +44,11 @@ public class NewBotHandler {
             }
 
             Logger.info("New Subscriber for Channel: %s. Bot: %s", channel.name, newBot.id);
+            if (broadcaster != null) {
+                broadcaster.sendToAdminConv(channel.admin, String.format("@%s has joined the channel", newBot.origin.handle));
+            }
         } catch (Exception e) {
-            Logger.error(e.getLocalizedMessage());
+            Logger.error(e.getMessage());
             return false;
         }
         return true;

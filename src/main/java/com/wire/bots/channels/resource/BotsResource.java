@@ -79,7 +79,7 @@ public class BotsResource {
         }
 
         if (!storage.saveFile(".channel", name)) {
-            Logger.error("Failed to save the channel name into storage. Bot: %s, Channel: %s", botId, name);
+            Logger.error("Failed to save the channel id into storage. Bot: %s, Channel: %s", botId, name);
             return Response.
                     status(409).
                     build();
@@ -92,7 +92,7 @@ public class BotsResource {
         }
 
         NewBotResponseModel ret = new NewBotResponseModel();
-        ret.name = name;
+        ret.name = channel.name;
 
         try (Crypto crypto = cryptoF.create(botId)) {
             ret.lastPreKey = crypto.newLastPreKey();

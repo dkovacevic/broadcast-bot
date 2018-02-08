@@ -10,12 +10,21 @@ data: data
 auth: "auth"
 
 channels:
+
   official:
-    name: "official"
-    token: 'secret'
-    admin: '55c08c06-553d-4015-b0c6-bbdb9a8ea43b'
+    id: "official"
+    name: "Wire Official"
+    token: null
+    admin: null
     introText: null
     introPic: null
-    whitelist:
-      - 'dejan_wire'
-      - 'joker'
+    whitelist: null
+
+  wire_news:
+    id: "wire_news"
+    name: "Wire News"
+    token: null
+    admin: null
+    introText: null
+    introPic: null
+    whitelist: null

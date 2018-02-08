@@ -26,7 +26,7 @@ public class BotsResourceTest {
 
     private static CryptoFactory cryptoFactory = (bot) -> new CryptoFile(app.getConfiguration().data, bot);
     private static StorageFactory storageFactory = (bot) -> new FileStorage(app.getConfiguration().data, bot);
-    private static NewBotHandler handler = new NewBotHandler(app.getConfiguration());
+    private static NewBotHandler handler = new NewBotHandler(app.getConfiguration(), null);
     private static BotsResource RESOURCE;
 
     @ClassRule

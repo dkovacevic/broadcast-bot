@@ -20,7 +20,6 @@ package com.wire.bots.channels;
 
 import com.waz.model.Messages;
 import com.wire.bots.channels.model.Channel;
-import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.assets.Picture;
@@ -40,8 +39,8 @@ public class MessageHandler extends MessageHandlerBase {
     private final Broadcaster broadcaster;
     private final StorageFactory storageFactory;
 
-    MessageHandler(ClientRepo repo, StorageFactory storageFactory) {
-        broadcaster = new Broadcaster(repo);
+    MessageHandler(Broadcaster broadcaster, StorageFactory storageFactory) {
+        this.broadcaster = broadcaster;
         this.storageFactory = storageFactory;
     }
 
@@ -106,7 +105,7 @@ public class MessageHandler extends MessageHandlerBase {
 
             if (botId.equals(channel.admin)) {
                 Logger.info("New broadcast for Channel: %s", channel.name);
-                broadcaster.broadcast(msg);
+                broadcaster.broadcast(channel, msg);
             } else {
                 broadcaster.sendToAdminConv(channel.admin, msg);
             }
@@ -133,7 +132,7 @@ public class MessageHandler extends MessageHandlerBase {
             msg.setData(audio);
 
             if (botId.equals(channel.admin)) {
-                broadcaster.broadcast(msg);
+                broadcaster.broadcast(channel, msg);
             } else {
                 broadcaster.sendToAdminConv(channel.admin, msg);
             }
@@ -162,7 +161,7 @@ public class MessageHandler extends MessageHandlerBase {
             msg.setData(video);
 
             if (botId.equals(channel.admin)) {
-                broadcaster.broadcast(msg);
+                broadcaster.broadcast(channel, msg);
             } else {
                 broadcaster.sendToAdminConv(channel.admin, msg);
             }
@@ -212,7 +211,7 @@ public class MessageHandler extends MessageHandlerBase {
             }
 
             if (msg.hasDeleted() && botId.equals(channel.admin)) {
-                broadcaster.revokeBroadcast(msg.getDeleted().getMessageId());
+                broadcaster.revokeBroadcast(channel, msg.getDeleted().getMessageId());
             }
         } catch (Exception e) {
             Logger.error(e.getMessage());

@@ -34,6 +34,7 @@ import java.net.URI;
 public class Service extends Server<Config> {
     private static final String SERVICE = "channel";
     static Config CONFIG;
+    private Broadcaster broadcaster;
 
     public static void main(String[] args) throws Exception {
         new Service().run(args);
@@ -41,7 +42,10 @@ public class Service extends Server<Config> {
 
     @Override
     protected MessageHandlerBase createHandler(Config config, Environment env) {
-        return new MessageHandler(repo, getStorageFactory(config));
+        StorageFactory storageFactory = getStorageFactory(config);
+        broadcaster = new Broadcaster(repo, storageFactory);
+
+        return new MessageHandler(broadcaster, storageFactory);
     }
 
     @Override
@@ -54,13 +58,16 @@ public class Service extends Server<Config> {
         CryptoFactory cryptoFactory = getCryptoFactory(config);
         StorageFactory storageFactory = getStorageFactory(config);
 
-        NewBotHandler newBotHandler = new NewBotHandler(config);
-        addResource(new BotsResource(newBotHandler, storageFactory, cryptoFactory), env);
+        NewBotHandler newBotHandler = new NewBotHandler(config, broadcaster);
+        BotsResource botsResource = new BotsResource(newBotHandler, storageFactory, cryptoFactory);
+
+        addResource(botsResource, env);
     }
 
     @Override
     protected void messageResource(Config config, Environment env, MessageHandlerBase handler) {
-        addResource(new MessageResource(handler, repo, config), env);
+        MessageResource messageResource = new MessageResource(handler, repo, config);
+        addResource(messageResource, env);
     }
 
     @Override
