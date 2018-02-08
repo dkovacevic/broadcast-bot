@@ -25,7 +25,6 @@ import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.assets.Picture;
 import com.wire.bots.sdk.factories.StorageFactory;
 import com.wire.bots.sdk.models.*;
-import com.wire.bots.sdk.server.model.Member;
 import com.wire.bots.sdk.server.model.User;
 import com.wire.bots.sdk.tools.Logger;
 
@@ -33,7 +32,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
 public class MessageHandler extends MessageHandlerBase {
     private final Broadcaster broadcaster;
@@ -174,8 +172,8 @@ public class MessageHandler extends MessageHandlerBase {
     public void onBotRemoved(String botId) {
         try {
             Channel channel = getChannel(botId);
-            broadcaster.sendToAdminConv(channel.admin, "**Follower has left**");
-            Logger.info("Subscriber has left from Channel: %s. Bot: %s", channel.name, botId);
+            //broadcaster.sendToAdminConv(channel.admin, "**Follower has left**");
+            Logger.info("Subscriber has left from the Channel: %s. Bot: %s", channel.name, botId);
         } catch (Exception e) {
             Logger.error(e.getMessage());
         }
@@ -187,12 +185,10 @@ public class MessageHandler extends MessageHandlerBase {
             String botId = client.getId();
             Channel channel = getChannel(botId);
 
-            // Delete the channel if there are no more members
-            List<Member> members = client.getConversation().members;
-            if (members.isEmpty()) {
-                Logger.info("Subscriber left from Channel: %s. Bot: %s", channel.name, botId);
-                String userName = getUserName(client, members.iterator().next().id);
-                broadcaster.sendToAdminConv(channel.admin, String.format("@%s has left", userName));
+            for (String userId : userIds) {
+                Logger.info("Subscriber left from the Channel: %s. Bot: %s", channel.name, botId);
+                String userName = getUserName(client, userId);
+                broadcaster.sendToAdminConv(channel.admin, String.format("**@%s** has left", userName));
             }
         } catch (Exception e) {
             Logger.error(e.getMessage());
@@ -207,7 +203,7 @@ public class MessageHandler extends MessageHandlerBase {
 
             if (msg.hasReaction()) {
                 String userName = getUserName(client, userId);
-                broadcaster.sendToAdminConv(channel.admin, String.format("@%s liked your post", userName));
+                broadcaster.sendToAdminConv(channel.admin, String.format("**@%s** liked your post", userName));
             }
 
             if (msg.hasDeleted() && botId.equals(channel.admin)) {
