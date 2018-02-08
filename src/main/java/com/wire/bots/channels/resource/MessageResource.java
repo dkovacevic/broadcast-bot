@@ -1,11 +1,14 @@
 package com.wire.bots.channels.resource;
 
-import com.wire.bots.channels.Service;
 import com.wire.bots.channels.model.Channel;
 import com.wire.bots.channels.model.Config;
-import com.wire.bots.sdk.*;
+import com.wire.bots.sdk.ClientRepo;
+import com.wire.bots.sdk.MessageHandlerBase;
+import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.server.model.InboundMessage;
 import com.wire.bots.sdk.server.resources.MessageResourceBase;
+import com.wire.bots.sdk.tools.Logger;
+import com.wire.bots.sdk.tools.Util;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
@@ -14,8 +17,11 @@ import javax.ws.rs.core.Response;
 @Consumes(MediaType.APPLICATION_JSON)
 @Path("/channels/{name}/bots/{bot}/messages")
 public class MessageResource extends MessageResourceBase {
+    private final Config conf;
+
     public MessageResource(MessageHandlerBase handler, ClientRepo repo, Config conf) {
-        super(handler, conf, repo);
+        super(handler, repo);
+        this.conf = conf;
     }
 
     @POST
@@ -24,7 +30,7 @@ public class MessageResource extends MessageResourceBase {
                                @PathParam("bot") String bot,
                                InboundMessage inbound) throws Exception {
 
-        Channel channel = Service.storage.getChannel(channelName);
+        Channel channel = conf.getChannels().get(channelName);
         if (channel == null) {
             Logger.warning("Unknown channel: %s.", channelName);
             return Response.

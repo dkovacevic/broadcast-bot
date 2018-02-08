@@ -21,72 +21,28 @@ package com.wire.bots.channels;
 import com.waz.model.Messages;
 import com.wire.bots.channels.model.Channel;
 import com.wire.bots.sdk.ClientRepo;
-import com.wire.bots.sdk.Logger;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.assets.Picture;
+import com.wire.bots.sdk.factories.StorageFactory;
 import com.wire.bots.sdk.models.*;
 import com.wire.bots.sdk.server.model.Member;
-import com.wire.bots.sdk.server.model.NewBot;
 import com.wire.bots.sdk.server.model.User;
+import com.wire.bots.sdk.tools.Logger;
 
 import java.io.IOException;
-import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
-class MessageHandler extends MessageHandlerBase {
+public class MessageHandler extends MessageHandlerBase {
     private final Broadcaster broadcaster;
+    private final StorageFactory storageFactory;
 
-    MessageHandler(ClientRepo repo) {
+    MessageHandler(ClientRepo repo, StorageFactory storageFactory) {
         broadcaster = new Broadcaster(repo);
-    }
-
-    @Override
-    public boolean onNewBot(NewBot newBot) {
-        try {
-            String botId = newBot.id;
-            Channel channel = getChannel(botId);
-            User origin = newBot.origin;
-
-            ArrayList<String> whitelist = Service.storage.getWhitelist(channel.name, Storage.State.WHITE);
-            if (!whitelist.isEmpty() && !whitelist.contains(origin.handle)) {
-                Logger.warning("Rejecting NewBot. Not White Listed");
-                return false;
-            }
-
-            ArrayList<String> blacklist = Service.storage.getWhitelist(channel.name, Storage.State.BLACK);
-            if (!blacklist.isEmpty() && blacklist.contains(origin.handle)) {
-                Logger.warning("Rejecting NewBot. Black Listed");
-                return false;
-            }
-
-            for (Member member : newBot.conversation.members) {
-                if (member.service != null) {
-                    Logger.warning("Rejecting NewBot. Provider: %s service: %s",
-                            member.service.provider,
-                            member.service.id);
-                    return false; // we don't want to be in a conv if other bots are there.
-                }
-            }
-
-            if (channel.admin == null) {
-                Logger.warning("Rejecting NewBot. Channel `%s` not yet activated", channel.name);
-                return false;
-            }
-
-            int id = Service.storage.getLastBroadcast(channel.name);
-            Service.storage.updateBot(botId, "Last", ++id);
-
-            Logger.info("New Subscriber for Channel: %s. Bot: %s", channel.name, newBot.id);
-
-            if (!channel.muted) {
-                broadcaster.sendToAdminConv(channel.admin, String.format("@%s has joined", origin.handle));
-            }
-        } catch (Exception e) {
-            Logger.error(e.getLocalizedMessage());
-            return false;
-        }
-        return true;
+        this.storageFactory = storageFactory;
     }
 
     @Override
@@ -94,13 +50,12 @@ class MessageHandler extends MessageHandlerBase {
         try {
             String botId = client.getId();
             Channel channel = getChannel(botId);
-            if (botId.equals(channel.admin)) {
-                String msg = String.format("This is Admin Conversation for the Channel: **%s**." +
+            if (channel.admin == null) {
+                String msg = String.format("This is Admin (%s) for the Channel: **%s**." +
                                 "\nYou should rename this conversation to something like: `Admin %s`." +
-                                "\nUse this conversation to broadcast. Don't leave or delete it!" +
-                                "\nOthers can subscribe to this channel by clicking on: wire.com/b/%s" +
-                                "\n`Type: /help`",
-                        channel.name,
+                                "\nUse this conversation to broadcast. Don't leave or delete it!",
+                        botId,
+
                         channel.name,
                         channel.name);
                 client.sendText(msg);
@@ -115,8 +70,10 @@ class MessageHandler extends MessageHandlerBase {
                 client.sendPicture(picture);
             }
 
-            String label = channel.introText != null ? channel.introText : String.format("This is **%s** channel", channel.name);
-            client.sendText(label + "\n`Type: /help`");
+            String label = channel.introText != null
+                    ? channel.introText
+                    : String.format("This is **%s** channel", channel.name);
+            client.sendText(label);
         } catch (Exception e) {
             Logger.error(e.getMessage());
         }
@@ -127,20 +84,12 @@ class MessageHandler extends MessageHandlerBase {
         try {
             String botId = client.getId();
             Channel channel = getChannel(botId);
-            String text = msg.getText();
 
             if (botId.equals(channel.admin)) {
-                if (!Commander.processAdminCmd(channel.name, text, client)) {
-                    Logger.info("New broadcast for Channel: %s", channel.name);
-                    broadcaster.broadcast(channel, msg);
-                }
+                Logger.info("New broadcast for Channel: %s", channel.name);
+                broadcaster.broadcast(channel, msg);
             } else {
-                if (!processSubscriberCmd(text, client)) {
-                    Service.storage.insertMessage(botId, channel.name);
-                    if (!channel.muted) {
-                        broadcaster.sendToAdminConv(channel.admin, msg);
-                    }
-                }
+                broadcaster.sendToAdminConv(channel.admin, msg);
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
@@ -157,11 +106,9 @@ class MessageHandler extends MessageHandlerBase {
 
             if (botId.equals(channel.admin)) {
                 Logger.info("New broadcast for Channel: %s", channel.name);
-                broadcaster.broadcast(channel.name, msg);
+                broadcaster.broadcast(msg);
             } else {
-                Service.storage.insertMessage(botId, channel.name);
-                if (!channel.muted)
-                    broadcaster.sendToAdminConv(channel.admin, msg);
+                broadcaster.sendToAdminConv(channel.admin, msg);
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
@@ -186,11 +133,9 @@ class MessageHandler extends MessageHandlerBase {
             msg.setData(audio);
 
             if (botId.equals(channel.admin)) {
-                broadcaster.broadcast(channel.name, msg);
+                broadcaster.broadcast(msg);
             } else {
-                Service.storage.insertMessage(botId, channel.name);
-                if (!channel.muted)
-                    broadcaster.sendToAdminConv(channel.admin, msg);
+                broadcaster.sendToAdminConv(channel.admin, msg);
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
@@ -217,40 +162,9 @@ class MessageHandler extends MessageHandlerBase {
             msg.setData(video);
 
             if (botId.equals(channel.admin)) {
-                broadcaster.broadcast(channel.name, msg);
+                broadcaster.broadcast(msg);
             } else {
-                Service.storage.insertMessage(botId, channel.name);
-                if (!channel.muted)
-                    broadcaster.sendToAdminConv(channel.admin, msg);
-            }
-        } catch (Exception e) {
-            Logger.error(e.getLocalizedMessage());
-        }
-    }
-
-    @Override
-    public void onAttachment(WireClient client, AttachmentMessage msg) {
-        try {
-            String botId = client.getId();
-            Channel channel = getChannel(botId);
-
-            Logger.info("OnAttachment: %s, %s, %s",
-                    msg.getName(),
-                    msg.getAssetKey(),
-                    msg.getAssetToken());
-
-            byte[] data = client.downloadAsset(msg.getAssetKey(),
-                    msg.getAssetToken(),
-                    msg.getSha256(),
-                    msg.getOtrKey());
-            msg.setData(data);
-
-            if (botId.equals(channel.admin)) {
-                //broadcaster.broadcast(channel.name, msg);
-            } else {
-                Service.storage.insertMessage(botId, channel.name);
-                if (!channel.muted)
-                    broadcaster.sendToAdminConv(channel.admin, msg);
+                broadcaster.sendToAdminConv(channel.admin, msg);
             }
         } catch (Exception e) {
             Logger.error(e.getLocalizedMessage());
@@ -261,7 +175,6 @@ class MessageHandler extends MessageHandlerBase {
     public void onBotRemoved(String botId) {
         try {
             Channel channel = getChannel(botId);
-            Service.storage.removeSubscriber(botId);
             broadcaster.sendToAdminConv(channel.admin, "**Follower has left**");
             Logger.info("Subscriber has left from Channel: %s. Bot: %s", channel.name, botId);
         } catch (Exception e) {
@@ -278,12 +191,9 @@ class MessageHandler extends MessageHandlerBase {
             // Delete the channel if there are no more members
             List<Member> members = client.getConversation().members;
             if (members.isEmpty()) {
-                Service.storage.removeSubscriber(botId);
                 Logger.info("Subscriber left from Channel: %s. Bot: %s", channel.name, botId);
-                if (!channel.muted) {
-                    String userName = getUserName(client, members.iterator().next().id);
-                    broadcaster.sendToAdminConv(channel.admin, String.format("@%s has left", userName));
-                }
+                String userName = getUserName(client, members.iterator().next().id);
+                broadcaster.sendToAdminConv(channel.admin, String.format("@%s has left", userName));
             }
         } catch (Exception e) {
             Logger.error(e.getMessage());
@@ -297,15 +207,12 @@ class MessageHandler extends MessageHandlerBase {
             Channel channel = getChannel(botId);
 
             if (msg.hasReaction()) {
-                Service.storage.insertMessage(botId, channel.name);
-                if (!channel.muted) {
-                    String userName = getUserName(client, userId);
-                    broadcaster.sendToAdminConv(channel.admin, String.format("@%s liked your post", userName));
-                }
+                String userName = getUserName(client, userId);
+                broadcaster.sendToAdminConv(channel.admin, String.format("@%s liked your post", userName));
             }
 
             if (msg.hasDeleted() && botId.equals(channel.admin)) {
-                broadcaster.revokeBroadcast(channel.name, msg.getDeleted().getMessageId());
+                broadcaster.revokeBroadcast(msg.getDeleted().getMessageId());
             }
         } catch (Exception e) {
             Logger.error(e.getMessage());
@@ -317,43 +224,9 @@ class MessageHandler extends MessageHandlerBase {
         onText(client, msg);
     }
 
-    private boolean processSubscriberCmd(String cmd, WireClient client) throws Exception {
-        switch (cmd) {
-            case "/help": {
-                String h = "List of available commands:\n" +
-                        "`/prev`   Show 5 previous posts\n" +
-                        "`/mute`   Mute all new posts\n" +
-                        "`/unmute` Resume posts in this channel";
-                client.sendText(h);
-                return true;
-            }
-            case "/prev": {
-                broadcaster.followBack(client, 5);
-                return true;
-            }
-            case "/mute": {
-                Service.storage.updateBot(client.getId(), "Muted", 1);
-                client.sendText("You won't receive posts here anymore. Type: `/unmute` to resume");
-                return true;
-            }
-            case "/unmute": {
-                Service.storage.updateBot(client.getId(), "Muted", 0);
-                client.sendText("Posts resumed");
-                return true;
-            }
-            default: {
-                if (cmd.startsWith("/")) {
-                    client.sendText("Unknown command: `" + cmd + "`");
-                    return true;
-                }
-                return false;
-            }
-        }
-    }
-
-    private Channel getChannel(String botId) throws SQLException {
-        String channelName = Service.storage.getChannelName(botId);
-        return Service.storage.getChannel(channelName);
+    private Channel getChannel(String botId) throws Exception {
+        String channelName = storageFactory.create(botId).readFile(".channel");
+        return Service.CONFIG.getChannels().get(channelName);
     }
 
     private String getUserName(WireClient client, String userId) throws IOException {

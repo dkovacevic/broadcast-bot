@@ -7,8 +7,8 @@ import org.jsoup.select.Elements;
 
 import java.io.IOException;
 
-public class UrlUtil {
-    public static String extractPagePreview(String url) throws IOException {
+class UrlUtil {
+    static String extractPagePreview(String url) throws IOException {
         Connection con = Jsoup.connect(url);
         Document doc = con.get();
 
@@ -19,7 +19,7 @@ public class UrlUtil {
         return null;
     }
 
-    public static  String extractPageTitle(String url) throws IOException {
+    static String extractPageTitle(String url) throws IOException {
         Connection con = Jsoup.connect(url);
         Document doc = con.get();
 

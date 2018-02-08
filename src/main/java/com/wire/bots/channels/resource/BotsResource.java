@@ -18,94 +18,86 @@
 
 package com.wire.bots.channels.resource;
 
-import com.wire.bots.channels.Service;
+import com.wire.bots.channels.NewBotHandler;
 import com.wire.bots.channels.model.Channel;
-import com.wire.bots.channels.model.Config;
-import com.wire.bots.sdk.*;
+import com.wire.bots.sdk.crypto.Crypto;
+import com.wire.bots.sdk.factories.CryptoFactory;
+import com.wire.bots.sdk.factories.StorageFactory;
 import com.wire.bots.sdk.server.model.NewBot;
 import com.wire.bots.sdk.server.model.NewBotResponseModel;
-import com.wire.bots.sdk.server.model.User;
+import com.wire.bots.sdk.storage.Storage;
+import com.wire.bots.sdk.tools.Logger;
+import com.wire.bots.sdk.tools.Util;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.File;
 
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Path("/channels/{name}/bots")
 public class BotsResource {
-    private final MessageHandlerBase handler;
-    private final Configuration conf;
-    private final ClientRepo repo;
+    private final NewBotHandler handler;
+    private final StorageFactory storageF;
+    private final CryptoFactory cryptoF;
 
-    public BotsResource(MessageHandlerBase handler, ClientRepo repo, Config conf) {
+    public BotsResource(NewBotHandler handler, StorageFactory storageF, CryptoFactory cryptoF) {
         this.handler = handler;
-        this.conf = conf;
-        this.repo = repo;
+        this.storageF = storageF;
+        this.cryptoF = cryptoF;
     }
 
     @POST
     public Response newBot(@HeaderParam("Authorization") String auth,
-                           @PathParam("name") String channelName,
+                           @PathParam("name") String name,
                            NewBot newBot) throws Exception {
 
-        Channel channel = Service.storage.getChannel(channelName);
+        Channel channel = handler.getChannel(name);
         if (channel == null) {
-            Logger.warning("Unknown Channel: %s.", channelName);
+            Logger.warning("Unknown Channel: %s.", name);
             return Response.
                     status(404).
                     build();
         }
 
         if (!Util.compareTokens(auth, channel.token)) {
-            Logger.warning("Invalid Authorization for Channel: %s.", channelName);
+            Logger.warning("Invalid Authorization for Channel: %s.", name);
             return Response.
                     ok("Invalid Authorization: " + auth).
                     status(403).
                     build();
         }
 
-        User origin = newBot.origin;
+        String botId = newBot.id;
+        Storage storage = storageF.create(botId);
 
-        Service.storage.insertBot(channelName,
-                newBot.id,
-                origin.id,
-                origin.handle,
-                origin.name,
-                newBot.conversation.id);
-
-        if (origin.id.equals(channel.origin) && channel.admin == null) {
-            Logger.info("Setting Admin Conv for Channel: %s. Bot: %s", channelName, newBot.id);
-            Service.storage.updateChannel(channelName, "Admin", newBot.id);
-        } else if (!handler.onNewBot(newBot)) {
+        if (!storage.saveState(newBot)) {
+            Logger.error("Failed to save the state. Bot: %s, Channel: %s", botId, name);
             return Response.
                     status(409).
                     build();
         }
 
-        String path = String.format("%s/%s", conf.getCryptoDir(), newBot.id);
-        File dir = new File(path);
-        if (!dir.mkdirs())
-            Logger.warning("Failed to create dir: %s", dir.getAbsolutePath());
+        if (!storage.saveFile(".channel", name)) {
+            Logger.error("Failed to save the channel name into storage. Bot: %s, Channel: %s", botId, name);
+            return Response.
+                    status(409).
+                    build();
+        }
 
-        Util.writeLine(newBot.client, new File(path + "/client.id"));
-        Util.writeLine(newBot.token, new File(path + "/token.id"));
-        Util.writeLine(newBot.conversation.id, new File(path + "/conversation.id"));
+        if (!handler.onNewBot(name, newBot)) {
+            return Response.
+                    status(409).
+                    build();
+        }
 
         NewBotResponseModel ret = new NewBotResponseModel();
-        ret.name = channelName;
+        ret.name = name;
 
-        WireClient client = repo.getFactory().createClient(
-                newBot.id,
-                newBot.conversation.id,
-                newBot.client,
-                newBot.token);
-
-        ret.lastPreKey = client.newLastPreKey();
-        ret.preKeys = client.newPreKeys(0, newBot.conversation.members.size() * 8);
-
-        client.close();
+        try (Crypto crypto = cryptoF.create(botId)) {
+            ret.lastPreKey = crypto.newLastPreKey();
+            ret.preKeys = crypto.newPreKeys(0, newBot.conversation.members.size() * 8);
+        }
 
         return Response.
                 ok(ret).

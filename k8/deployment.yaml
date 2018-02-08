@@ -1,20 +1,28 @@
----
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: channel
+  namespace: staging
+  labels:
+    app: channel
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: channel
   template:
     metadata:
+      name: channel
       labels:
         name: channel
+        app: channel
     spec:
       restartPolicy: Always
 
       containers:
         - name: channel
-          image: eu.gcr.io/wire-bot/channel:latest
+          image: dejankovacevic/channel-bot:latest
+          imagePullPolicy: Always
 
           resources:
             requests:
@@ -22,75 +30,59 @@ spec:
             limits:
               memory: "500Mi"
 
-          ports:
-            - name: web
-              containerPort: 8080
-              protocol: TCP
-
-          ports:
-            - name: admin
-              containerPort: 8081
-              protocol: TCP
-
           env:
-            - name: AUTH_TOKEN
+            - name: CRYPTONITE
+              value: "http://10.3.246.114:80"
+
+            - name: OFFICIAL_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: channel-knows
+                  name: official
                   key: token
 
-            - name: APP_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: channel-knows
-                  key: app_secret
+          ports:
+            - containerPort: 8080
+              protocol: TCP
 
-            - name: KEYSTORE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: channel-knows
-                  key: keystore_password
+          livenessProbe:
+            httpGet:
+              path: /bots/status
+              port: 8080
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            periodSeconds: 10
 
-          volumeMounts:
-            - name: channel-disk
-              mountPath: /var/lib/channel/crypto
-
-            - name: channel-config
-              mountPath: /etc/channel
+          # for L7 LB
+          readinessProbe:
+            httpGet:
+              path: /bots/status
+              port: 8080
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            periodSeconds: 10
 
           command:
             - "/usr/bin/java"
-            - "-Ddw.server.applicationConnectors[1].keyStorePassword=$(KEYSTORE_PASSWORD)"
-            - "-Ddw.auth=$(AUTH_TOKEN)"
-            - "-Ddw.appSecret=$(APP_SECRET)"
-            - "-Ddw.host=35.187.36.97"
+            - "-Ddw.channels.official.token=$(OFFICIAL_TOKEN)"
+            - "-Ddw.data=$(CRYPTONITE)"
+            - "-Denv=staging"
             - "-jar"
             - "channel.jar"
             - "server"
             - "/etc/channel/channel.yaml"
-
-      volumes:
-        - name: channel-disk
-          gcePersistentDisk:
-            pdName: channel-disk
-            fsType: ext4
-
-        - name: channel-config
-          configMap:
-            name: channel-config
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: channel
+  namespace: staging
 spec:
   selector:
     name: channel
-  type: LoadBalancer
+  type: NodePort
   ports:
-    - name: https
-      port: 443
+    - name: http
+      port: 80
+      targetPort: 8080
       protocol: TCP
-
-

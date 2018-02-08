@@ -19,16 +19,20 @@
 package com.wire.bots.channels;
 
 import com.wire.bots.channels.model.Config;
-import com.wire.bots.channels.resource.AdminResource;
 import com.wire.bots.channels.resource.BotsResource;
-import com.wire.bots.channels.resource.BroadcastResource;
 import com.wire.bots.channels.resource.MessageResource;
+import com.wire.bots.cryptonite.CryptoService;
+import com.wire.bots.cryptonite.StorageService;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.Server;
+import com.wire.bots.sdk.factories.CryptoFactory;
+import com.wire.bots.sdk.factories.StorageFactory;
 import io.dropwizard.setup.Environment;
 
+import java.net.URI;
+
 public class Service extends Server<Config> {
-    public static Storage storage;
+    private static final String SERVICE = "channel";
     static Config CONFIG;
 
     public static void main(String[] args) throws Exception {
@@ -37,25 +41,35 @@ public class Service extends Server<Config> {
 
     @Override
     protected MessageHandlerBase createHandler(Config config, Environment env) {
-        return new MessageHandler(repo);
+        return new MessageHandler(repo, getStorageFactory(config));
     }
 
     @Override
     protected void onRun(Config config, Environment env) {
         CONFIG = config;
-        addResource(new AdminResource(config), env);
-        addResource(new BroadcastResource(repo), env);
-
-        storage = new Storage(config.getDatabase());
     }
 
     @Override
     protected void botResource(Config config, Environment env, MessageHandlerBase handler) {
-        addResource(new BotsResource(handler, repo, config), env);
+        CryptoFactory cryptoFactory = getCryptoFactory(config);
+        StorageFactory storageFactory = getStorageFactory(config);
+
+        NewBotHandler newBotHandler = new NewBotHandler(config);
+        addResource(new BotsResource(newBotHandler, storageFactory, cryptoFactory), env);
     }
 
     @Override
     protected void messageResource(Config config, Environment env, MessageHandlerBase handler) {
         addResource(new MessageResource(handler, repo, config), env);
+    }
+
+    @Override
+    protected StorageFactory getStorageFactory(Config config) {
+        return botId -> new StorageService(SERVICE, botId, new URI(config.data));
+    }
+
+    @Override
+    protected CryptoFactory getCryptoFactory(Config config) {
+        return (botId) -> new CryptoService(SERVICE, botId, new URI(config.data));
     }
 }

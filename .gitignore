@@ -1,4 +1,4 @@
 target/
-certs/
+data/
 .idea/
 *.iml

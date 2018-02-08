@@ -1,6 +1,6 @@
-FROM wire/bots.runtime:latest
+FROM dejankovacevic/bots.runtime:latest
 
-COPY target/channel.jar      /opt/channel/channel.jar
-COPY certs/keystore.jks        /opt/channel/keystore.jks
+COPY target/channel.jar   /opt/channel/channel.jar
+COPY channel.yaml         /etc/channel/channel.yaml
 
 WORKDIR /opt/channel

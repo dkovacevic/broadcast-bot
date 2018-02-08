@@ -19,24 +19,13 @@
 package com.wire.bots.channels.model;
 
 import javax.validation.constraints.NotNull;
+import java.util.HashMap;
 
 public class Config extends com.wire.bots.sdk.Configuration {
     @NotNull
-    private String database;
-    @NotNull
-    private String appSecret;
+    HashMap<String, Channel> channels;
 
-    private String host;
-
-    public String getDatabase() {
-        return database;
-    }
-
-    public String getAppSecret() {
-        return appSecret;
-    }
-
-    public String getHost() {
-        return host;
+    public HashMap<String, Channel> getChannels() {
+        return channels;
     }
 }
