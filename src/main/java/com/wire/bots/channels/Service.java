@@ -18,8 +18,10 @@
 
 package com.wire.bots.channels;
 
+import com.github.mtakaki.dropwizard.admin.AdminResourceBundle;
 import com.wire.bots.channels.model.Config;
 import com.wire.bots.channels.resource.BotsResource;
+import com.wire.bots.channels.resource.ForwardResource;
 import com.wire.bots.channels.resource.MessageResource;
 import com.wire.bots.cryptonite.CryptoService;
 import com.wire.bots.cryptonite.StorageService;
@@ -29,13 +31,16 @@ import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.Server;
 import com.wire.bots.sdk.factories.CryptoFactory;
 import com.wire.bots.sdk.factories.StorageFactory;
+import com.wire.bots.sdk.tools.Logger;
+import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 
 import java.net.URI;
 
 public class Service extends Server<Config> {
     private static final String SERVICE = "channel";
-    static Config CONFIG;
+    public static Config CONFIG;
+    private final AdminResourceBundle admin = new AdminResourceBundle();
     private Broadcaster broadcaster;
     private StorageClient storageClient;
     private CryptoClient cryptoClient;
@@ -53,10 +58,25 @@ public class Service extends Server<Config> {
     }
 
     @Override
+    public void initialize(Bootstrap<Config> bootstrap) {
+        bootstrap.addBundle(admin);
+    }
+
+    @Override
     protected void initialize(Config config, Environment env) throws Exception {
         CONFIG = config;
+        Logger.info("Storage: %s", config.data);
+        Logger.info("Channel Service Host: %s", config.host);
+
         storageClient = new StorageClient(SERVICE, new URI(config.data));
         cryptoClient = new CryptoClient(SERVICE, new URI(config.data));
+    }
+
+    @Override
+    protected void onRun(Config config, Environment env) {
+        admin.getJerseyEnvironment()
+                .register(new ForwardResource(repo));
+        //env.jersey().register(new ForwardResource(repo));
     }
 
     @Override

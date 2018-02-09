@@ -21,13 +21,8 @@ public class NewBotHandler {
         try {
             Channel channel = config.getChannels().get(channelName);
 
-            ArrayList<String> whitelist = channel.whitelist;
-            if (whitelist != null && !whitelist.isEmpty()) {
-                if (!whitelist.contains(newBot.origin.handle)) {
-                    Logger.warning("Rejecting NewBot. Not Whitelisted. %s", newBot.origin.handle);
-                    return false;
-                }
-            }
+            if (checkWhitelist(newBot.origin.handle, channel.whitelist))
+                return false;
 
             for (Member member : newBot.conversation.members) {
                 if (member.service != null) {
@@ -52,6 +47,16 @@ public class NewBotHandler {
             return false;
         }
         return true;
+    }
+
+    private boolean checkWhitelist(String handle, ArrayList<String> whitelist) {
+        if (whitelist != null && !whitelist.isEmpty()) {
+            if (!whitelist.contains(handle)) {
+                Logger.warning("Rejecting NewBot. Not Whitelisted. %s", handle);
+                return true;
+            }
+        }
+        return false;
     }
 
     public Channel getChannel(String name) {

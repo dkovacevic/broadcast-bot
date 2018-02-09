@@ -18,14 +18,21 @@
 
 package com.wire.bots.channels.model;
 
-import javax.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.wire.bots.sdk.Configuration;
+
 import java.util.HashMap;
 
-public class Config extends com.wire.bots.sdk.Configuration {
-    @NotNull
-    HashMap<String, Channel> channels;
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class Config extends Configuration {
+    public HashMap<String, Channel> channels = new HashMap<>();
+    public String host;
 
     public HashMap<String, Channel> getChannels() {
         return channels;
+    }
+
+    public String getHost() {
+        return host;
     }
 }

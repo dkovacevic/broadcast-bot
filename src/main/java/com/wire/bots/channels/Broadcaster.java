@@ -18,6 +18,7 @@
 
 package com.wire.bots.channels;
 
+import com.wire.bots.channels.clients.ForwardClient;
 import com.wire.bots.channels.model.Channel;
 import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.WireClient;
@@ -27,6 +28,7 @@ import com.wire.bots.sdk.models.AudioMessage;
 import com.wire.bots.sdk.models.ImageMessage;
 import com.wire.bots.sdk.models.TextMessage;
 import com.wire.bots.sdk.models.VideoMessage;
+import com.wire.bots.sdk.server.model.NewBot;
 import com.wire.bots.sdk.server.model.User;
 import com.wire.bots.sdk.storage.Storage;
 import com.wire.bots.sdk.tools.Logger;
@@ -172,18 +174,15 @@ class Broadcaster {
     }
 
     private void broadcastText(Channel channel, final TextMessage msg) throws Exception {
-        final String messageId = msg.getMessageId();
-        final String text = msg.getText();
-
-        for (final WireClient client : getSubscribers(channel)) {
-            executor.execute(() -> {
-                try {
-                    client.sendText(text, 0, messageId);
-                } catch (Exception e) {
-                    Logger.warning("Bot: %s. Error: %s", client.getId(), e.getMessage());
-                }
-            });
+        int success = 0;
+        int failed = 0;
+        for (String botId : getSubscriberIds(channel)) {
+            int status = ForwardClient.forward(botId, msg);
+            success += status == 200 ? 1 : 0;
+            failed += status != 200 ? 1 : 0;
         }
+
+        sendToAdminConv(channel.admin, String.format("Delivered: %d, failed: %d", success, failed));
     }
 
     private void broadcastUrl(Channel channel, final TextMessage msg) throws Exception {
@@ -212,6 +211,20 @@ class Broadcaster {
             String id = storage.readFile(".channel");
             if (channel.id.equalsIgnoreCase(id))
                 ret.add(client);
+        }
+        return ret;
+    }
+
+    private ArrayList<String> getSubscriberIds(Channel channel) throws Exception {
+        ArrayList<String> ret = new ArrayList<>();
+        for (NewBot bot : storageFactory.create("").listAllStates()) {
+            if (bot.id.equals(channel.admin))
+                continue;
+
+            Storage storage = storageFactory.create(bot.id);
+            String id = storage.readFile(".channel");
+            if (channel.id.equalsIgnoreCase(id))
+                ret.add(bot.id);
         }
         return ret;
     }
