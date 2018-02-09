@@ -23,7 +23,10 @@ import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.assets.Picture;
 import com.wire.bots.sdk.factories.StorageFactory;
-import com.wire.bots.sdk.models.*;
+import com.wire.bots.sdk.models.AudioMessage;
+import com.wire.bots.sdk.models.ImageMessage;
+import com.wire.bots.sdk.models.TextMessage;
+import com.wire.bots.sdk.models.VideoMessage;
 import com.wire.bots.sdk.server.model.User;
 import com.wire.bots.sdk.storage.Storage;
 import com.wire.bots.sdk.tools.Logger;
@@ -121,7 +124,7 @@ class Broadcaster {
         WireClient adminClient = repo.getWireClient(adminBot);
         String userName = getUserName(adminClient, msg.getUserId());
 
-        adminClient.sendText(String.format("@%s wrote: _%s_", userName, msg.getText()));
+        adminClient.sendText(String.format("**@%s** wrote: _%s_", userName, msg.getText()));
     }
 
     void sendToAdminConv(String adminBot, ImageMessage msg) throws Exception {
@@ -138,7 +141,7 @@ class Broadcaster {
         picture.setOtrKey(msg.getOtrKey());
         picture.setSha256(msg.getSha256());
 
-        adminClient.sendText(String.format("@%s has sent:", userName));
+        adminClient.sendText(String.format("**@%s** has sent:", userName));
         adminClient.sendPicture(picture);
     }
 
@@ -146,7 +149,7 @@ class Broadcaster {
         WireClient adminClient = repo.getWireClient(adminBot);
         String userName = getUserName(adminClient, msg.getUserId());
 
-        adminClient.sendText(String.format("@%s has sent:", userName));
+        adminClient.sendText(String.format("**@%s** has sent:", userName));
         adminClient.sendAudio(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
     }
 
@@ -154,7 +157,7 @@ class Broadcaster {
         WireClient adminClient = repo.getWireClient(adminBot);
         String userName = getUserName(adminClient, msg.getUserId());
 
-        adminClient.sendText(String.format("@%s has sent:", userName));
+        adminClient.sendText(String.format("**@%s** has sent:", userName));
         adminClient.sendVideo(msg.getData(),
                 msg.getName(),
                 msg.getMimeType(),
@@ -166,15 +169,6 @@ class Broadcaster {
     void sendToAdminConv(String adminBot, String text) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
         adminClient.sendText(text);
-    }
-
-    private Picture uploadPreview(WireClient client, String imgUrl) throws Exception {
-        Picture preview = new Picture(imgUrl);
-        preview.setPublic(true);
-
-        AssetKey assetKey = client.uploadAsset(preview);
-        preview.setAssetKey(assetKey.key);
-        return preview;
     }
 
     private void broadcastText(Channel channel, final TextMessage msg) throws Exception {
@@ -197,7 +191,7 @@ class Broadcaster {
 
         final String url = msg.getText();
         final String title = UrlUtil.extractPageTitle(url);
-        final Picture preview = uploadPreview(adminClient, UrlUtil.extractPagePreview(url));
+        final Picture preview = Cache.getPicture(adminClient, UrlUtil.extractPagePreview(url));
 
         for (final WireClient client : getSubscribers(channel)) {
             executor.execute(() -> {

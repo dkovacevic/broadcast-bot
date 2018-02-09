@@ -23,6 +23,8 @@ import com.wire.bots.channels.resource.BotsResource;
 import com.wire.bots.channels.resource.MessageResource;
 import com.wire.bots.cryptonite.CryptoService;
 import com.wire.bots.cryptonite.StorageService;
+import com.wire.bots.cryptonite.client.CryptoClient;
+import com.wire.bots.cryptonite.client.StorageClient;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.Server;
 import com.wire.bots.sdk.factories.CryptoFactory;
@@ -35,13 +37,15 @@ public class Service extends Server<Config> {
     private static final String SERVICE = "channel";
     static Config CONFIG;
     private Broadcaster broadcaster;
+    private StorageClient storageClient;
+    private CryptoClient cryptoClient;
 
     public static void main(String[] args) throws Exception {
         new Service().run(args);
     }
 
     @Override
-    protected MessageHandlerBase createHandler(Config config, Environment env) {
+    protected MessageHandlerBase createHandler(Config config, Environment env) throws Exception {
         StorageFactory storageFactory = getStorageFactory(config);
         broadcaster = new Broadcaster(repo, storageFactory);
 
@@ -49,8 +53,10 @@ public class Service extends Server<Config> {
     }
 
     @Override
-    protected void onRun(Config config, Environment env) {
+    protected void initialize(Config config, Environment env) throws Exception {
         CONFIG = config;
+        storageClient = new StorageClient(SERVICE, new URI(config.data));
+        cryptoClient = new CryptoClient(SERVICE, new URI(config.data));
     }
 
     @Override
@@ -72,11 +78,11 @@ public class Service extends Server<Config> {
 
     @Override
     protected StorageFactory getStorageFactory(Config config) {
-        return botId -> new StorageService(SERVICE, botId, new URI(config.data));
+        return botId -> new StorageService(botId, storageClient);
     }
 
     @Override
     protected CryptoFactory getCryptoFactory(Config config) {
-        return (botId) -> new CryptoService(SERVICE, botId, new URI(config.data));
+        return (botId) -> new CryptoService(botId, cryptoClient);
     }
 }

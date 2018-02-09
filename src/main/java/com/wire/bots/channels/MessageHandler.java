@@ -24,7 +24,10 @@ import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.assets.Picture;
 import com.wire.bots.sdk.factories.StorageFactory;
-import com.wire.bots.sdk.models.*;
+import com.wire.bots.sdk.models.AudioMessage;
+import com.wire.bots.sdk.models.ImageMessage;
+import com.wire.bots.sdk.models.TextMessage;
+import com.wire.bots.sdk.models.VideoMessage;
 import com.wire.bots.sdk.server.model.User;
 import com.wire.bots.sdk.tools.Logger;
 
@@ -50,7 +53,7 @@ public class MessageHandler extends MessageHandlerBase {
             if (channel.admin == null) {
                 String msg = String.format("This is Admin (%s) for the Channel: **%s**." +
                                 "\nYou should rename this conversation to something like: `Admin %s`." +
-                                "\nUse this conversation to broadcast. Don't leave or delete it!",
+                                "\nUse this conversation to broadcast.\nDon't leave or delete it!",
                         botId,
 
                         channel.name,
@@ -59,12 +62,11 @@ public class MessageHandler extends MessageHandlerBase {
                 return;
             }
 
-            if (channel.introPic != null) {
-                Picture picture = new Picture(channel.introPic);
-                AssetKey assetKey = client.uploadAsset(picture);
-                picture.setAssetKey(assetKey.key);
-                picture.setAssetToken(assetKey.token);
-                client.sendPicture(picture);
+            String introPic = channel.introPic;
+            if (introPic != null) {
+                Picture picture = Cache.getPicture(client, introPic);
+                if (picture != null)
+                    client.sendPicture(picture);
             }
 
             String label = channel.introText != null
