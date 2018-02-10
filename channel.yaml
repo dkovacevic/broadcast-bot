@@ -8,6 +8,9 @@ server:
 
 data: data
 auth: "auth"
+batch: 50
+threads: 8
+host: 'http://localhost:8081'
 
 channels:
 
