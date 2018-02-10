@@ -54,7 +54,11 @@ public class MessageResource extends MessageResourceBase {
                     build();
         }
 
-        handleMessage(inbound, wireClient);
+        try {
+            handleMessage(inbound, wireClient);
+        } catch (Exception e) {
+            Logger.error("NewMessage: Bot: %s, type: %s, error: %s", wireClient.getId(), inbound.type, e);
+        }
 
         return Response.
                 ok().

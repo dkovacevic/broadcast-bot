@@ -114,6 +114,7 @@ class Broadcaster {
                     try {
                         client.sendReaction("", "");
                     } catch (Exception e) {
+                        Logger.error("warmup: %s", e);
                     }
                 });
             }
