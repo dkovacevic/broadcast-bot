@@ -34,50 +34,60 @@ import com.wire.bots.sdk.storage.Storage;
 import com.wire.bots.sdk.tools.Logger;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
+import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 class Broadcaster {
     private final ClientRepo repo;
     private final StorageFactory storageFactory;
-    private final ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(20);
+    private final ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(Service.CONFIG.threads);
 
     Broadcaster(ClientRepo repo, StorageFactory storageFactory) {
         this.repo = repo;
         this.storageFactory = storageFactory;
+
+        warmup();
     }
 
-    private void broadcastText(Channel channel, final TextMessage msg) throws Exception {
-        int success = 0;
-        int failed = 0;
-        ArrayList<String> ids = getSubscriberIds(channel);
+    private void broadcastLocally(Channel channel, final TextMessage msg) throws Exception {
+        ArrayList<WireClient> subscribers = getSubscribers(channel);
+        ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(Service.CONFIG.threads);
 
         Date s = new Date();
-        for (String botId : ids) {
-            int status = ForwardClient.forward(botId, msg);
-            success += status == 200 ? 1 : 0;
-            failed += status != 200 ? 1 : 0;
+        for (final WireClient client : subscribers) {
+            executor.execute(() -> {
+                try {
+                    client.sendText(msg.getText());
+                } catch (Exception e) {
+                    Logger.warning("Bot: %s. Error: %s", client.getId(), e.getMessage());
+                }
+            });
         }
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.MINUTES);
         Date e = new Date();
 
         float elapse = (e.getTime() - s.getTime()) / 1000f;
-        float avg = ids.size() / elapse;
-        sendToAdminConv(channel.admin, String.format("Delivered: %d, failed: %d in: %.2f sec, avg: %.2f msg/sec",
-                success,
-                failed,
+        float avg = subscribers.size() / elapse;
+        sendToAdminConv(channel.admin, String.format("Delivered: %d in: %.2f sec, avg: %.2f msg/sec",
+                subscribers.size(),
                 elapse,
                 avg));
     }
 
-    private void broadcastText2(Channel channel, final TextMessage msg) throws Exception {
+    private void broadcastForward(Channel channel, final TextMessage msg) throws Exception {
         ArrayList<String> ids = getSubscriberIds(channel);
 
+        ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(Service.CONFIG.threads);
+
         Date s = new Date();
-        int status = ForwardClient.forward(ids, msg);
+        for (Collection<String> slice : slice(ids, Service.CONFIG.batch)) {
+            executor.execute(() -> ForwardClient.forward(slice, msg));
+        }
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.MINUTES);
         Date e = new Date();
 
         float elapse = (e.getTime() - s.getTime()) / 1000f;
@@ -92,7 +102,23 @@ class Broadcaster {
         if (msg.getText().startsWith("http")) {
             broadcastUrl(channel, msg);
         } else {
-            broadcastText2(channel, msg);
+            broadcastForward(channel, msg);
+        }
+    }
+
+    private void warmup() {
+        try {
+            ArrayList<WireClient> wireClients = repo.listClients();
+            for (final WireClient client : wireClients) {
+                executor.execute(() -> {
+                    try {
+                        client.sendReaction("", "");
+                    } catch (Exception e) {
+                    }
+                });
+            }
+        } catch (Exception e) {
+            Logger.warning("warmup %s", e);
         }
     }
 
@@ -258,5 +284,18 @@ class Broadcaster {
     private String getUserName(WireClient client, String userId) throws IOException {
         Collection<User> users = client.getUsers(Collections.singletonList(userId));
         return users.iterator().next().handle;
+    }
+
+    private Collection<Collection<String>> slice(List<String> ids, int batch) {
+        Collection<Collection<String>> ret = new ArrayList<>();
+        for (int i = 0; i < ids.size(); i += batch) {
+            int toIndex = i + batch;
+            if (toIndex > ids.size()) {
+                toIndex = ids.size();
+            }
+            List<String> slice = ids.subList(i, toIndex);
+            ret.add(slice);
+        }
+        return ret;
     }
 }

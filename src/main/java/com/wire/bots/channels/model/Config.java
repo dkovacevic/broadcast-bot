@@ -27,6 +27,9 @@ import java.util.HashMap;
 public class Config extends Configuration {
     public HashMap<String, Channel> channels = new HashMap<>();
     public String host;
+    public int batch = 100;
+    public int threads = 8;
+
 
     public HashMap<String, Channel> getChannels() {
         return channels;
@@ -34,5 +37,13 @@ public class Config extends Configuration {
 
     public String getHost() {
         return host;
+    }
+
+    public int getBatch() {
+        return batch;
+    }
+
+    public int getThreads() {
+        return threads;
     }
 }

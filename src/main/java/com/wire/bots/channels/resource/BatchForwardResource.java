@@ -1,5 +1,6 @@
 package com.wire.bots.channels.resource;
 
+import com.wire.bots.channels.Service;
 import com.wire.bots.channels.model.BatchForward;
 import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.WireClient;
@@ -10,7 +11,9 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Path("/forward/batch")
 @Consumes(MediaType.APPLICATION_JSON)
@@ -24,15 +27,21 @@ public class BatchForwardResource {
 
     @PUT
     public Response forward(BatchForward batch) throws Exception {
+        ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(Service.CONFIG.threads);
 
         for (String botId : batch.bots) {
-            try {
-                WireClient wireClient = repo.getWireClient(botId);
-                wireClient.sendText(batch.payload);
-            } catch (IOException e) {
-                Logger.warning(e.toString());
-            }
+            executor.execute(() -> {
+                try {
+                    WireClient wireClient = repo.getWireClient(botId);
+                    wireClient.sendText(batch.payload);
+                } catch (Exception e) {
+                    Logger.warning("Bot: %s. Error: %s", botId, e.getMessage());
+                }
+            });
         }
+        executor.shutdown();
+        executor.awaitTermination(30, TimeUnit.SECONDS);
+
         return Response.
                 ok().
                 build();

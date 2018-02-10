@@ -11,7 +11,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.util.ArrayList;
+import java.util.Collection;
 
 public class ForwardClient {
 
@@ -35,7 +35,7 @@ public class ForwardClient {
         return response.getStatus();
     }
 
-    public static int forward(ArrayList<String> bots, TextMessage msg) {
+    public static int forward(Collection<String> bots, TextMessage msg) {
         BatchForward batch = new BatchForward();
         batch.bots = bots;
         batch.payload = msg.getText();
