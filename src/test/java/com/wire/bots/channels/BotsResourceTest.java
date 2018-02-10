@@ -10,9 +10,6 @@ import com.wire.bots.sdk.server.model.NewBotResponseModel;
 import com.wire.bots.sdk.storage.FileStorage;
 import io.dropwizard.testing.junit.DropwizardAppRule;
 import io.dropwizard.testing.junit.ResourceTestRule;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
@@ -20,7 +17,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 public class BotsResourceTest {
-    @ClassRule
+    //@ClassRule
     public static final DropwizardAppRule<Config> app = new DropwizardAppRule<>(Service.class, "channels.yaml");
     private static final String CHANNEL_NAME = "official";
 
@@ -29,18 +26,18 @@ public class BotsResourceTest {
     private static NewBotHandler handler = new NewBotHandler(app.getConfiguration(), null);
     private static BotsResource RESOURCE;
 
-    @ClassRule
+    //@ClassRule
     public static final ResourceTestRule resources = ResourceTestRule.builder()
             .addResource(RESOURCE)
             .build();
 
-    @BeforeClass
+    //@BeforeClass
     public static void setUp() throws Exception {
         RESOURCE = new BotsResource(handler, storageFactory, cryptoFactory);
 
     }
 
-    @Test
+    //@Test
     public void testStorage() throws Exception {
         WebTarget path = resources
                 .target("channels")
