@@ -20,6 +20,7 @@ package com.wire.bots.channels;
 
 import com.github.mtakaki.dropwizard.admin.AdminResourceBundle;
 import com.wire.bots.channels.model.Config;
+import com.wire.bots.channels.resource.BatchForwardResource;
 import com.wire.bots.channels.resource.BotsResource;
 import com.wire.bots.channels.resource.ForwardResource;
 import com.wire.bots.channels.resource.MessageResource;
@@ -76,7 +77,8 @@ public class Service extends Server<Config> {
     protected void onRun(Config config, Environment env) {
         admin.getJerseyEnvironment()
                 .register(new ForwardResource(repo));
-        //env.jersey().register(new ForwardResource(repo));
+        admin.getJerseyEnvironment()
+                .register(new BatchForwardResource(repo));
     }
 
     @Override

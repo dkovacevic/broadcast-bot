@@ -2,6 +2,7 @@ package com.wire.bots.channels.clients;
 
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
 import com.wire.bots.channels.Service;
+import com.wire.bots.channels.model.BatchForward;
 import com.wire.bots.sdk.models.TextMessage;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.JerseyClientBuilder;
@@ -10,6 +11,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.ArrayList;
 
 public class ForwardClient {
 
@@ -29,6 +31,18 @@ public class ForwardClient {
                 path(bot).
                 request().
                 post(Entity.entity(msg.getText(), MediaType.TEXT_PLAIN));
+
+        return response.getStatus();
+    }
+
+    public static int forward(ArrayList<String> bots, TextMessage msg) {
+        BatchForward batch = new BatchForward();
+        batch.bots = bots;
+        batch.payload = msg.getText();
+        Response response = target.
+                path("batch").
+                request().
+                put(Entity.entity(batch, MediaType.APPLICATION_JSON));
 
         return response.getStatus();
     }

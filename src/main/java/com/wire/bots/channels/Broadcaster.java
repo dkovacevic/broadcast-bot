@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
@@ -50,11 +51,48 @@ class Broadcaster {
         this.storageFactory = storageFactory;
     }
 
+    private void broadcastText(Channel channel, final TextMessage msg) throws Exception {
+        int success = 0;
+        int failed = 0;
+        ArrayList<String> ids = getSubscriberIds(channel);
+
+        Date s = new Date();
+        for (String botId : ids) {
+            int status = ForwardClient.forward(botId, msg);
+            success += status == 200 ? 1 : 0;
+            failed += status != 200 ? 1 : 0;
+        }
+        Date e = new Date();
+
+        float elapse = (e.getTime() - s.getTime()) / 1000f;
+        float avg = ids.size() / elapse;
+        sendToAdminConv(channel.admin, String.format("Delivered: %d, failed: %d in: %.2f sec, avg: %.2f msg/sec",
+                success,
+                failed,
+                elapse,
+                avg));
+    }
+
+    private void broadcastText2(Channel channel, final TextMessage msg) throws Exception {
+        ArrayList<String> ids = getSubscriberIds(channel);
+
+        Date s = new Date();
+        int status = ForwardClient.forward(ids, msg);
+        Date e = new Date();
+
+        float elapse = (e.getTime() - s.getTime()) / 1000f;
+        float avg = ids.size() / elapse;
+        sendToAdminConv(channel.admin, String.format("Delivered: %d, in: %.2f sec, avg: %.2f msg/sec",
+                ids.size(),
+                elapse,
+                avg));
+    }
+
     void broadcast(Channel channel, TextMessage msg) throws Exception {
         if (msg.getText().startsWith("http")) {
             broadcastUrl(channel, msg);
         } else {
-            broadcastText(channel, msg);
+            broadcastText2(channel, msg);
         }
     }
 
@@ -171,18 +209,6 @@ class Broadcaster {
     void sendToAdminConv(String adminBot, String text) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
         adminClient.sendText(text);
-    }
-
-    private void broadcastText(Channel channel, final TextMessage msg) throws Exception {
-        int success = 0;
-        int failed = 0;
-        for (String botId : getSubscriberIds(channel)) {
-            int status = ForwardClient.forward(botId, msg);
-            success += status == 200 ? 1 : 0;
-            failed += status != 200 ? 1 : 0;
-        }
-
-        sendToAdminConv(channel.admin, String.format("Delivered: %d, failed: %d", success, failed));
     }
 
     private void broadcastUrl(Channel channel, final TextMessage msg) throws Exception {

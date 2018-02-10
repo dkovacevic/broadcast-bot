@@ -189,8 +189,8 @@ public class MessageHandler extends MessageHandlerBase {
 
             for (String userId : userIds) {
                 Logger.info("Subscriber left from the Channel: %s. Bot: %s", channel.name, botId);
-                String userName = getUserName(client, userId);
-                broadcaster.sendToAdminConv(channel.admin, String.format("**@%s** has left", userName));
+                //String userName = getUserName(client, userId);
+                //broadcaster.sendToAdminConv(channel.admin, String.format("**@%s** has left", userName));
             }
         } catch (Exception e) {
             Logger.error(e.getMessage());
