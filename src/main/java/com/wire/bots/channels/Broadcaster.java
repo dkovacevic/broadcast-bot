@@ -38,6 +38,7 @@ import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class Broadcaster {
     private final ClientRepo repo;
@@ -56,10 +57,12 @@ class Broadcaster {
         ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(Service.CONFIG.threads);
 
         Date s = new Date();
+        final AtomicInteger success = new AtomicInteger(0);
         for (final WireClient client : subscribers) {
             executor.execute(() -> {
                 try {
                     client.sendText(msg.getText());
+                    success.incrementAndGet();
                 } catch (Exception e) {
                     Logger.warning("Bot: %s. Error: %s", client.getId(), e.getMessage());
                 }
@@ -71,8 +74,8 @@ class Broadcaster {
 
         float elapse = (e.getTime() - s.getTime()) / 1000f;
         float avg = subscribers.size() / elapse;
-        sendToAdminConv(channel.admin, String.format("Delivered: %d in: %.2f sec, avg: %.2f msg/sec",
-                subscribers.size(),
+        sendToAdminConv(channel.admin, String.format("Delivered to %d subscribers, in: %.2f sec, avg: %.2f msg/sec",
+                success.get(),
                 elapse,
                 avg));
     }
@@ -83,8 +86,15 @@ class Broadcaster {
         ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(Service.CONFIG.threads);
 
         Date s = new Date();
+        final AtomicInteger success = new AtomicInteger(0);
         for (Collection<String> slice : slice(ids, Service.CONFIG.batch)) {
-            executor.execute(() -> ForwardClient.forward(slice, msg));
+            executor.execute(() -> {
+                int status = ForwardClient.forward(slice, msg);
+                if (status == 200)
+                    success.addAndGet(slice.size());
+                else
+                    Logger.warning("Failed to forward slice %d", slice.size());
+            });
         }
         executor.shutdown();
         executor.awaitTermination(5, TimeUnit.MINUTES);
@@ -92,8 +102,8 @@ class Broadcaster {
 
         float elapse = (e.getTime() - s.getTime()) / 1000f;
         float avg = ids.size() / elapse;
-        sendToAdminConv(channel.admin, String.format("Delivered: %d, in: %.2f sec, avg: %.2f msg/sec",
-                ids.size(),
+        sendToAdminConv(channel.admin, String.format("Delivered to %d subscribers, in: %.2f sec, avg: %.2f msg/sec",
+                success.get(),
                 elapse,
                 avg));
     }
@@ -102,7 +112,7 @@ class Broadcaster {
         if (msg.getText().startsWith("http")) {
             broadcastUrl(channel, msg);
         } else {
-            broadcastForward(channel, msg);
+            broadcastLocally(channel, msg);
         }
     }
 
