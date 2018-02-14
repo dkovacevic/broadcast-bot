@@ -54,30 +54,17 @@ class Broadcaster {
 
     private void broadcastLocally(Channel channel, final TextMessage msg) throws Exception {
         ArrayList<WireClient> subscribers = getSubscribers(channel);
-        ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(Service.CONFIG.threads);
-
-        Date s = new Date();
-        final AtomicInteger success = new AtomicInteger(0);
         for (final WireClient client : subscribers) {
             executor.execute(() -> {
                 try {
                     client.sendText(msg.getText());
-                    success.incrementAndGet();
                 } catch (Exception e) {
                     Logger.warning("Bot: %s. Error: %s", client.getId(), e.getMessage());
                 }
             });
         }
-        executor.shutdown();
-        executor.awaitTermination(5, TimeUnit.MINUTES);
-        Date e = new Date();
-
-        float elapse = (e.getTime() - s.getTime()) / 1000f;
-        float avg = subscribers.size() / elapse;
-        sendToAdminConv(channel.admin, String.format("Delivered to %d subscribers, in: %.2f sec, avg: %.2f msg/sec",
-                success.get(),
-                elapse,
-                avg));
+        Logger.info("Broadcasted to: %d subscribers", subscribers.size());
+        //sendToAdminConv(channel.admin, log);
     }
 
     private void broadcastForward(Channel channel, final TextMessage msg) throws Exception {
@@ -102,10 +89,12 @@ class Broadcaster {
 
         float elapse = (e.getTime() - s.getTime()) / 1000f;
         float avg = ids.size() / elapse;
-        sendToAdminConv(channel.admin, String.format("Delivered to %d subscribers, in: %.2f sec, avg: %.2f msg/sec",
+        String log = String.format("Delivered to %d subscribers, in: %.2f sec, avg: %.2f msg/sec",
                 success.get(),
                 elapse,
-                avg));
+                avg);
+        Logger.info(log);
+        //sendToAdminConv(channel.admin, log);
     }
 
     void broadcast(Channel channel, TextMessage msg) throws Exception {
@@ -124,7 +113,7 @@ class Broadcaster {
                     try {
                         client.sendReaction("", "");
                     } catch (Exception e) {
-                        Logger.error("warmup: %s", e);
+                        Logger.error("warmup: bot: %s, %s", client.getId(), e);
                     }
                 });
             }
@@ -270,6 +259,9 @@ class Broadcaster {
         ArrayList<WireClient> ret = new ArrayList<>();
         for (WireClient client : repo.listClients()) {
             String botId = client.getId();
+            if (botId.equals(channel.admin))
+                continue;
+
             Storage storage = storageFactory.create(botId);
             String id = storage.readFile(".channel");
             if (channel.id.equalsIgnoreCase(id))

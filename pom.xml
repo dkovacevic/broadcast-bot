@@ -6,7 +6,7 @@
 
     <artifactId>channel</artifactId>
     <groupId>com.wire.bots</groupId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
 
     <repositories>
         <repository>
