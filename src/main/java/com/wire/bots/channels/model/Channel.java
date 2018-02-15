@@ -1,7 +1,5 @@
 package com.wire.bots.channels.model;
 
-import java.util.ArrayList;
-
 public class Channel {
     public String id;
     public String name;
@@ -9,5 +7,5 @@ public class Channel {
     public String admin;
     public String introText;
     public String introPic;
-    public ArrayList<String> whitelist;
+    public String whitelist;
 }

@@ -6,8 +6,6 @@ import com.wire.bots.sdk.server.model.Member;
 import com.wire.bots.sdk.server.model.NewBot;
 import com.wire.bots.sdk.tools.Logger;
 
-import java.util.ArrayList;
-
 public class NewBotHandler {
     private final Config config;
     private final Broadcaster broadcaster;
@@ -49,10 +47,17 @@ public class NewBotHandler {
         return true;
     }
 
-    private boolean checkWhitelist(String handle, ArrayList<String> whitelist) {
+    private boolean checkWhitelist(String handle, String whitelist) {
         if (whitelist != null && !whitelist.isEmpty()) {
-            if (!whitelist.contains(handle)) {
-                Logger.warning("Rejecting NewBot. Not Whitelisted. %s", handle);
+            if (!isWhitelisted(handle, whitelist))
+                return true;
+        }
+        return false;
+    }
+
+    private boolean isWhitelisted(String handle, String whitelist) {
+        for (String white : whitelist.split(",")) {
+            if (white.equalsIgnoreCase(handle)) {
                 return true;
             }
         }
