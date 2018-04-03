@@ -1,7 +1,6 @@
 package com.wire.bots.channels;
 
 import com.wire.bots.channels.model.Channel;
-import com.wire.bots.channels.model.Config;
 import com.wire.bots.sdk.server.model.Member;
 import com.wire.bots.sdk.server.model.NewBot;
 import com.wire.bots.sdk.tools.Logger;
@@ -42,7 +41,8 @@ public class NewBotHandler {
             }
         } catch (Exception e) {
             Logger.error(e.getMessage());
-            return false;
+            e.printStackTrace();
+            return true;
         }
         return true;
     }

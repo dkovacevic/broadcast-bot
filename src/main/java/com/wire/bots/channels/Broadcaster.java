@@ -28,9 +28,7 @@ import com.wire.bots.sdk.models.AudioMessage;
 import com.wire.bots.sdk.models.ImageMessage;
 import com.wire.bots.sdk.models.TextMessage;
 import com.wire.bots.sdk.models.VideoMessage;
-import com.wire.bots.sdk.server.model.NewBot;
 import com.wire.bots.sdk.server.model.User;
-import com.wire.bots.sdk.storage.Storage;
 import com.wire.bots.sdk.tools.Logger;
 
 import java.io.IOException;
@@ -49,7 +47,7 @@ class Broadcaster {
         this.repo = repo;
         this.storageFactory = storageFactory;
 
-        warmup();
+        //warmup();
     }
 
     private void broadcastLocally(Channel channel, final TextMessage msg) throws Exception {
@@ -101,7 +99,7 @@ class Broadcaster {
         if (msg.getText().startsWith("http")) {
             broadcastUrl(channel, msg);
         } else {
-            broadcastLocally(channel, msg);
+            broadcastForward(channel, msg);
         }
     }
 
@@ -257,31 +255,20 @@ class Broadcaster {
 
     private ArrayList<WireClient> getSubscribers(Channel channel) throws Exception {
         ArrayList<WireClient> ret = new ArrayList<>();
-        for (WireClient client : repo.listClients()) {
-            String botId = client.getId();
+        for (String botId : getSubscriberIds(channel)) {
             if (botId.equals(channel.admin))
                 continue;
 
-            Storage storage = storageFactory.create(botId);
-            String id = storage.readFile(".channel");
-            if (channel.id.equalsIgnoreCase(id))
-                ret.add(client);
+            WireClient wireClient = repo.getWireClient(botId);
+            if (wireClient != null)
+                ret.add(wireClient);
         }
         return ret;
     }
 
     private ArrayList<String> getSubscriberIds(Channel channel) throws Exception {
-        ArrayList<String> ret = new ArrayList<>();
-        for (NewBot bot : storageFactory.create("").listAllStates()) {
-            if (bot.id.equals(channel.admin))
-                continue;
-
-            Storage storage = storageFactory.create(bot.id);
-            String id = storage.readFile(".channel");
-            if (channel.id.equalsIgnoreCase(id))
-                ret.add(bot.id);
-        }
-        return ret;
+        Database database = new Database(Service.CONFIG.db);
+        return database.getSubscribers(channel.id);
     }
 
     private String getUserName(WireClient client, String userId) throws IOException {

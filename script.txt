@@ -1,0 +1,4 @@
+CREATE TABLE Channels (
+ botId  UUID NOT NULL PRIMARY KEY,
+ channel varchar NOT NULL
+);

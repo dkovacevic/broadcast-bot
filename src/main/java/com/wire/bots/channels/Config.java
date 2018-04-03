@@ -16,9 +16,10 @@
 // along with this program. If not, see http://www.gnu.org/licenses/.
 //
 
-package com.wire.bots.channels.model;
+package com.wire.bots.channels;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.wire.bots.channels.model.Channel;
 import com.wire.bots.sdk.Configuration;
 
 import java.util.HashMap;
@@ -29,7 +30,6 @@ public class Config extends Configuration {
     public String host;
     public int batch = 100;
     public int threads = 8;
-
 
     public HashMap<String, Channel> getChannels() {
         return channels;

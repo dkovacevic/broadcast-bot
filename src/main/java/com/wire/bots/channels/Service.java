@@ -19,35 +19,33 @@
 package com.wire.bots.channels;
 
 import com.github.mtakaki.dropwizard.admin.AdminResourceBundle;
-import com.wire.bots.channels.model.Config;
 import com.wire.bots.channels.resource.BatchForwardResource;
 import com.wire.bots.channels.resource.BotsResource;
 import com.wire.bots.channels.resource.ForwardResource;
 import com.wire.bots.channels.resource.MessageResource;
-import com.wire.bots.cryptonite.CryptoService;
-import com.wire.bots.cryptonite.StorageService;
-import com.wire.bots.cryptonite.client.CryptoClient;
-import com.wire.bots.cryptonite.client.StorageClient;
+import com.wire.bots.cryptobox.storage.PgStorage;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.Server;
+import com.wire.bots.sdk.crypto.CryptoDatabase;
 import com.wire.bots.sdk.factories.CryptoFactory;
 import com.wire.bots.sdk.factories.StorageFactory;
+import com.wire.bots.sdk.state.PostgresState;
 import com.wire.bots.sdk.tools.Logger;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 
-import java.net.URI;
-
 public class Service extends Server<Config> {
-    private static final String SERVICE = "channel";
     public static Config CONFIG;
     private final AdminResourceBundle admin = new AdminResourceBundle();
     private Broadcaster broadcaster;
-    private StorageClient storageClient;
-    private CryptoClient cryptoClient;
 
-    public static void main(String[] args) throws Exception {
-        new Service().run(args);
+    public static void main(String[] args) {
+        try {
+            new Service().run(args);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Logger.error(e.toString());
+        }
     }
 
     @Override
@@ -55,7 +53,7 @@ public class Service extends Server<Config> {
         StorageFactory storageFactory = getStorageFactory(config);
         broadcaster = new Broadcaster(repo, storageFactory);
 
-        return new MessageHandler(broadcaster, storageFactory);
+        return new MessageHandler(broadcaster);
     }
 
     @Override
@@ -66,11 +64,8 @@ public class Service extends Server<Config> {
     @Override
     protected void initialize(Config config, Environment env) throws Exception {
         CONFIG = config;
-        Logger.info("Storage: %s", config.data);
         Logger.info("Channel Service Host: %s", config.host);
-
-        storageClient = new StorageClient(SERVICE, new URI(config.data));
-        cryptoClient = new CryptoClient(SERVICE, new URI(config.data));
+        Logger.info("DB Host: %s", config.db.host);
     }
 
     @Override
@@ -100,11 +95,16 @@ public class Service extends Server<Config> {
 
     @Override
     protected StorageFactory getStorageFactory(Config config) {
-        return botId -> new StorageService(botId, storageClient);
+        return botId -> new PostgresState(botId, config.db);
     }
 
     @Override
     protected CryptoFactory getCryptoFactory(Config config) {
-        return (botId) -> new CryptoService(botId, cryptoClient);
+        return (botId) -> new CryptoDatabase(botId, new PgStorage(
+                config.db.user,
+                config.db.password,
+                config.db.database,
+                config.db.host,
+                config.db.port));
     }
 }

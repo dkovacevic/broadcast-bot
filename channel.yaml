@@ -12,6 +12,13 @@ batch: 50
 threads: 8
 host: 'http://localhost:8081'
 
+db:
+  host: localhost
+  port: 5432
+  database: postgres
+  user: postgres
+  password: password
+  
 channels:
 
   official:
@@ -26,7 +33,7 @@ channels:
   wire_news:
     id: "wire_news"
     name: "Wire News"
-    token: null
+    token: "official_token"
     admin: null
     introText: null
     introPic: null

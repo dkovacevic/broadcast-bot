@@ -23,7 +23,6 @@ import com.wire.bots.channels.model.Channel;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.assets.Picture;
-import com.wire.bots.sdk.factories.StorageFactory;
 import com.wire.bots.sdk.models.AudioMessage;
 import com.wire.bots.sdk.models.ImageMessage;
 import com.wire.bots.sdk.models.TextMessage;
@@ -38,11 +37,9 @@ import java.util.Collections;
 
 public class MessageHandler extends MessageHandlerBase {
     private final Broadcaster broadcaster;
-    private final StorageFactory storageFactory;
 
-    MessageHandler(Broadcaster broadcaster, StorageFactory storageFactory) {
+    MessageHandler(Broadcaster broadcaster) {
         this.broadcaster = broadcaster;
-        this.storageFactory = storageFactory;
     }
 
     @Override
@@ -74,7 +71,8 @@ public class MessageHandler extends MessageHandlerBase {
                     : String.format("This is **%s** channel", channel.name);
             client.sendText(label);
         } catch (Exception e) {
-            Logger.error(e.getMessage());
+            Logger.error(e.toString());
+            e.printStackTrace();
         }
     }
 
@@ -91,7 +89,8 @@ public class MessageHandler extends MessageHandlerBase {
                 broadcaster.sendToAdminConv(channel.admin, msg);
             }
         } catch (Exception e) {
-            Logger.error(e.getLocalizedMessage());
+            Logger.error(e.toString());
+            e.printStackTrace();
         }
     }
 
@@ -110,7 +109,7 @@ public class MessageHandler extends MessageHandlerBase {
                 broadcaster.sendToAdminConv(channel.admin, msg);
             }
         } catch (Exception e) {
-            Logger.error(e.getLocalizedMessage());
+            Logger.error(e.toString());
         }
     }
 
@@ -222,7 +221,8 @@ public class MessageHandler extends MessageHandlerBase {
     }
 
     private Channel getChannel(String botId) throws Exception {
-        String channelName = storageFactory.create(botId).readFile(".channel");
+        Database database = new Database(Service.CONFIG.db);
+        String channelName = database.getChannel(botId);
         return Service.CONFIG.getChannels().get(channelName);
     }
 

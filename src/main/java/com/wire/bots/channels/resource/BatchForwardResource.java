@@ -38,7 +38,7 @@ public class BatchForwardResource {
                 Logger.warning("BatchForwardResource.forward: Bot: %s. %s", botId, e);
             }
         }
-        Logger.info("Forwarded: %d out of %d", success, batch.bots.size());
+        //Logger.info("Forwarded: %d out of %d", success, batch.bots.size());
         return Response.
                 ok().
                 build();

@@ -1,7 +1,7 @@
 package com.wire.bots.channels.resource;
 
+import com.wire.bots.channels.Config;
 import com.wire.bots.channels.model.Channel;
-import com.wire.bots.channels.model.Config;
 import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.WireClient;

@@ -18,14 +18,16 @@
 
 package com.wire.bots.channels.resource;
 
+import com.wire.bots.channels.Database;
 import com.wire.bots.channels.NewBotHandler;
+import com.wire.bots.channels.Service;
 import com.wire.bots.channels.model.Channel;
 import com.wire.bots.sdk.crypto.Crypto;
 import com.wire.bots.sdk.factories.CryptoFactory;
 import com.wire.bots.sdk.factories.StorageFactory;
 import com.wire.bots.sdk.server.model.NewBot;
 import com.wire.bots.sdk.server.model.NewBotResponseModel;
-import com.wire.bots.sdk.storage.Storage;
+import com.wire.bots.sdk.state.State;
 import com.wire.bots.sdk.tools.Logger;
 import com.wire.bots.sdk.tools.Util;
 
@@ -69,7 +71,7 @@ public class BotsResource {
         }
 
         String botId = newBot.id;
-        Storage storage = storageF.create(botId);
+        State storage = storageF.create(botId);
 
         if (!storage.saveState(newBot)) {
             Logger.error("Failed to save the state. Bot: %s, Channel: %s", botId, name);
@@ -78,7 +80,8 @@ public class BotsResource {
                     build();
         }
 
-        if (!storage.saveFile(".channel", name)) {
+        Database database = new Database(Service.CONFIG.db);
+        if (!database.insertSubscriber(botId, name)) {
             Logger.error("Failed to save the channel id into storage. Bot: %s, Channel: %s", botId, name);
             return Response.
                     status(409).
