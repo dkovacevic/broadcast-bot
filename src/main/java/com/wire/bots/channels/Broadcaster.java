@@ -67,6 +67,7 @@ class Broadcaster {
 
     private void broadcastForward(Channel channel, final TextMessage msg) throws Exception {
         ArrayList<String> ids = getSubscriberIds(channel);
+        ids.remove(channel.admin);
 
         ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(Service.CONFIG.threads);
 

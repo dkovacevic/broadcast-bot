@@ -1,9 +1,12 @@
 package com.wire.bots.channels.resource;
 
+import com.wire.bots.channels.Database;
+import com.wire.bots.channels.Service;
 import com.wire.bots.channels.model.BatchForward;
 import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.exceptions.HttpException;
+import com.wire.bots.sdk.exceptions.MissingStateException;
 import com.wire.bots.sdk.tools.Logger;
 
 import javax.ws.rs.Consumes;
@@ -24,16 +27,25 @@ public class BatchForwardResource {
 
     @PUT
     public Response forward(BatchForward batch) throws Exception {
+        Database database = new Database(Service.CONFIG.db);
+
         int success = 0;
         for (String botId : batch.bots) {
-            WireClient wireClient = repo.getWireClient(botId);
             try {
+                WireClient wireClient = repo.getWireClient(botId);
+                if (wireClient == null) {
+                    database.unsubscribe(botId);
+                    continue;
+                }
+
                 wireClient.sendText(batch.payload);
                 success++;
             } catch (HttpException e) {
                 if (e.getStatusCode() == 404) {
-                    repo.purgeBot(wireClient.getId());
+                    repo.purgeBot(botId);
                 }
+            } catch (MissingStateException e) {
+                database.unsubscribe(botId);
             } catch (Exception e) {
                 Logger.warning("BatchForwardResource.forward: Bot: %s. %s", botId, e);
             }

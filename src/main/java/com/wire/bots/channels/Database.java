@@ -51,4 +51,12 @@ public class Database {
         }
         return null;
     }
+
+    public boolean unsubscribe(String botId) throws SQLException {
+        try (Connection c = newConnection()) {
+            PreparedStatement stmt = c.prepareStatement("DELETE FROM Channels WHERE botId = ?");
+            stmt.setObject(1, UUID.fromString(botId));
+            return stmt.executeUpdate() == 1;
+        }
+    }
 }

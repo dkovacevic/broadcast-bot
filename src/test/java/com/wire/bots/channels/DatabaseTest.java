@@ -31,5 +31,8 @@ public class DatabaseTest {
         String dbChannel = db.getChannel(botId);
         assert dbChannel != null;
         assert dbChannel.equalsIgnoreCase(channel);
+
+        boolean unsubscribe = db.unsubscribe(botId);
+        assert unsubscribe;
     }
 }
