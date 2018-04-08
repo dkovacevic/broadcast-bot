@@ -23,7 +23,6 @@ import com.wire.bots.channels.model.Channel;
 import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.WireClient;
 import com.wire.bots.sdk.assets.Picture;
-import com.wire.bots.sdk.factories.StorageFactory;
 import com.wire.bots.sdk.models.AudioMessage;
 import com.wire.bots.sdk.models.ImageMessage;
 import com.wire.bots.sdk.models.TextMessage;
@@ -40,28 +39,40 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 class Broadcaster {
     private final ClientRepo repo;
-    private final StorageFactory storageFactory;
     private final ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(Service.CONFIG.threads);
 
-    Broadcaster(ClientRepo repo, StorageFactory storageFactory) {
+    Broadcaster(ClientRepo repo) {
         this.repo = repo;
-        this.storageFactory = storageFactory;
-
-        //warmup();
+        warmup();
     }
 
     private void broadcastLocally(Channel channel, final TextMessage msg) throws Exception {
+        ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(Service.CONFIG.threads);
+        final AtomicInteger success = new AtomicInteger(0);
+
         ArrayList<WireClient> subscribers = getSubscribers(channel);
+        Date s = new Date();
         for (final WireClient client : subscribers) {
             executor.execute(() -> {
                 try {
                     client.sendText(msg.getText());
+                    success.incrementAndGet();
                 } catch (Exception e) {
                     Logger.warning("Bot: %s. Error: %s", client.getId(), e.getMessage());
                 }
             });
         }
-        Logger.info("Broadcasted to: %d subscribers", subscribers.size());
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.MINUTES);
+        Date e = new Date();
+
+        float elapse = (e.getTime() - s.getTime()) / 1000f;
+        float avg = subscribers.size() / elapse;
+        String log = String.format("Delivered to %d subscribers, in: %.2f sec, avg: %.2f msg/sec",
+                success.get(),
+                elapse,
+                avg);
+        Logger.info(log);
         //sendToAdminConv(channel.admin, log);
     }
 
@@ -105,19 +116,21 @@ class Broadcaster {
     }
 
     private void warmup() {
-        try {
-            ArrayList<WireClient> wireClients = repo.listClients();
-            for (final WireClient client : wireClients) {
-                executor.execute(() -> {
-                    try {
-                        client.sendReaction("", "");
-                    } catch (Exception e) {
-                        Logger.error("warmup: bot: %s, %s", client.getId(), e);
-                    }
-                });
+        for (Channel channel : Service.CONFIG.channels.values()) {
+            try {
+                ArrayList<WireClient> wireClients = getSubscribers(channel);
+                for (final WireClient client : wireClients) {
+                    executor.execute(() -> {
+                        try {
+                            client.sendReaction("", "");
+                        } catch (Exception e) {
+                            Logger.error("warmup: bot: %s, %s", client.getId(), e);
+                        }
+                    });
+                }
+            } catch (Exception e) {
+                Logger.warning("warmup %s", e);
             }
-        } catch (Exception e) {
-            Logger.warning("warmup %s", e);
         }
     }
 
@@ -187,9 +200,10 @@ class Broadcaster {
 
     void sendToAdminConv(String adminBot, TextMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
-        String userName = getUserName(adminClient, msg.getUserId());
-
-        adminClient.sendText(String.format("**@%s** wrote: _%s_", userName, msg.getText()));
+        if (adminClient != null) {
+            String userName = getUserName(adminClient, msg.getUserId());
+            adminClient.sendText(String.format("**@%s** wrote: _%s_", userName, msg.getText()));
+        }
     }
 
     void sendToAdminConv(String adminBot, ImageMessage msg) throws Exception {
@@ -212,28 +226,36 @@ class Broadcaster {
 
     void sendToAdminConv(String adminBot, AudioMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
-        String userName = getUserName(adminClient, msg.getUserId());
+        if (adminClient != null) {
 
-        adminClient.sendText(String.format("**@%s** has sent:", userName));
-        adminClient.sendAudio(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
+            String userName = getUserName(adminClient, msg.getUserId());
+
+            adminClient.sendText(String.format("**@%s** has sent:", userName));
+            adminClient.sendAudio(msg.getData(), msg.getName(), msg.getMimeType(), msg.getDuration());
+        }
     }
 
     void sendToAdminConv(String adminBot, VideoMessage msg) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
-        String userName = getUserName(adminClient, msg.getUserId());
+        if (adminClient != null) {
 
-        adminClient.sendText(String.format("**@%s** has sent:", userName));
-        adminClient.sendVideo(msg.getData(),
-                msg.getName(),
-                msg.getMimeType(),
-                msg.getDuration(),
-                msg.getHeight(),
-                msg.getWidth());
+            String userName = getUserName(adminClient, msg.getUserId());
+
+            adminClient.sendText(String.format("**@%s** has sent:", userName));
+            adminClient.sendVideo(msg.getData(),
+                    msg.getName(),
+                    msg.getMimeType(),
+                    msg.getDuration(),
+                    msg.getHeight(),
+                    msg.getWidth());
+        }
     }
 
     void sendToAdminConv(String adminBot, String text) throws Exception {
         WireClient adminClient = repo.getWireClient(adminBot);
-        adminClient.sendText(text);
+        if (adminClient != null) {
+            adminClient.sendText(text);
+        }
     }
 
     private void broadcastUrl(Channel channel, final TextMessage msg) throws Exception {
@@ -268,7 +290,7 @@ class Broadcaster {
     }
 
     private ArrayList<String> getSubscriberIds(Channel channel) throws Exception {
-        Database database = new Database(Service.CONFIG.db);
+        Database database = new Database(Service.CONFIG.getPostgres());
         return database.getSubscribers(channel.id);
     }
 

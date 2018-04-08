@@ -2,13 +2,13 @@ package com.wire.bots.channels;
 
 import com.wire.bots.channels.model.Channel;
 import com.wire.bots.channels.resource.BotsResource;
-import com.wire.bots.cryptobox.storage.PgStorage;
 import com.wire.bots.sdk.Configuration;
 import com.wire.bots.sdk.crypto.CryptoDatabase;
+import com.wire.bots.sdk.crypto.storage.RedisStorage;
 import com.wire.bots.sdk.factories.CryptoFactory;
 import com.wire.bots.sdk.factories.StorageFactory;
 import com.wire.bots.sdk.server.model.*;
-import com.wire.bots.sdk.state.PostgresState;
+import com.wire.bots.sdk.state.RedisState;
 import io.dropwizard.testing.junit.ResourceTestRule;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -35,12 +35,16 @@ public class BotsResourceTest {
     static {
         Service.CONFIG = new Config();
 
-        Configuration.DB db = Service.CONFIG.db = new Configuration.DB();
-        db.host = "localhost";
-        db.port = 5432;
-        db.database = "postgres";
-        db.user = "dejankovacevic";
-        db.password = "password";
+        Configuration.DB postgres = Service.CONFIG.postgres = new Configuration.DB();
+        postgres.host = "localhost";
+        postgres.port = 5432;
+        postgres.database = "postgres";
+        postgres.user = "dejankovacevic";
+        postgres.password = "password";
+
+        Configuration.DB redis = Service.CONFIG.db = new Configuration.DB();
+        redis.host = "localhost";
+        redis.port = 6379;
 
         Channel channel = new Channel();
         channel.id = CHANNEL_NAME;
@@ -52,14 +56,11 @@ public class BotsResourceTest {
 
         handler = new NewBotHandler(Service.CONFIG, null);
 
-        cryptoFactory = (botId) -> new CryptoDatabase(botId, new PgStorage(
-                db.user,
-                db.password,
-                db.database,
-                db.host,
-                db.port));
+        cryptoFactory = (botId) -> new CryptoDatabase(botId, new RedisStorage(
+                redis.host
+        ));
 
-        storageFactory = (bot) -> new PostgresState(bot, db);
+        storageFactory = (bot) -> new RedisState(bot, redis);
 
         resources = ResourceTestRule.builder()
                 .addResource(new BotsResource(handler, storageFactory, cryptoFactory))

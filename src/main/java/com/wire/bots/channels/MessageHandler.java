@@ -221,7 +221,7 @@ public class MessageHandler extends MessageHandlerBase {
     }
 
     private Channel getChannel(String botId) throws Exception {
-        Database database = new Database(Service.CONFIG.db);
+        Database database = new Database(Service.CONFIG.getPostgres());
         String channelName = database.getChannel(botId);
         return Service.CONFIG.getChannels().get(channelName);
     }

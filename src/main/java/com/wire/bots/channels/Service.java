@@ -23,13 +23,13 @@ import com.wire.bots.channels.resource.BatchForwardResource;
 import com.wire.bots.channels.resource.BotsResource;
 import com.wire.bots.channels.resource.ForwardResource;
 import com.wire.bots.channels.resource.MessageResource;
-import com.wire.bots.cryptobox.storage.PgStorage;
 import com.wire.bots.sdk.MessageHandlerBase;
 import com.wire.bots.sdk.Server;
 import com.wire.bots.sdk.crypto.CryptoDatabase;
+import com.wire.bots.sdk.crypto.storage.RedisStorage;
 import com.wire.bots.sdk.factories.CryptoFactory;
 import com.wire.bots.sdk.factories.StorageFactory;
-import com.wire.bots.sdk.state.PostgresState;
+import com.wire.bots.sdk.state.RedisState;
 import com.wire.bots.sdk.tools.Logger;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
@@ -50,9 +50,7 @@ public class Service extends Server<Config> {
 
     @Override
     protected MessageHandlerBase createHandler(Config config, Environment env) throws Exception {
-        StorageFactory storageFactory = getStorageFactory(config);
-        broadcaster = new Broadcaster(repo, storageFactory);
-
+        broadcaster = new Broadcaster(repo);
         return new MessageHandler(broadcaster);
     }
 
@@ -95,16 +93,14 @@ public class Service extends Server<Config> {
 
     @Override
     protected StorageFactory getStorageFactory(Config config) {
-        return botId -> new PostgresState(botId, config.db);
+        return botId -> new RedisState(botId, config.db);
     }
 
     @Override
     protected CryptoFactory getCryptoFactory(Config config) {
-        return (botId) -> new CryptoDatabase(botId, new PgStorage(
-                config.db.user,
-                config.db.password,
-                config.db.database,
+        return (botId) -> new CryptoDatabase(botId, new RedisStorage(
                 config.db.host,
-                config.db.port));
+                config.db.port,
+                config.db.password));
     }
 }

@@ -30,6 +30,7 @@ public class Config extends Configuration {
     public String host;
     public int batch = 100;
     public int threads = 8;
+    public DB postgres = new DB();
 
     public HashMap<String, Channel> getChannels() {
         return channels;
@@ -45,5 +46,9 @@ public class Config extends Configuration {
 
     public int getThreads() {
         return threads;
+    }
+
+    public DB getPostgres() {
+        return postgres;
     }
 }

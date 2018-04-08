@@ -9,8 +9,8 @@ import java.util.UUID;
 public class Database {
     private final Configuration.DB conf;
 
-    public Database(Configuration.DB conf) {
-        this.conf = conf;
+    public Database(Configuration.DB postgres) {
+        this.conf = postgres;
     }
 
     public boolean insertSubscriber(String botId, String channelName) throws Exception {
@@ -35,11 +35,6 @@ public class Database {
         return ret;
     }
 
-    private Connection newConnection() throws SQLException {
-        String url = String.format("jdbc:postgresql://%s:%d/%s", conf.host, conf.port, conf.database);
-        return DriverManager.getConnection(url, conf.user, conf.password);
-    }
-
     String getChannel(String botId) throws SQLException {
         try (Connection c = newConnection()) {
             PreparedStatement stmt = c.prepareStatement("SELECT channel FROM Channels WHERE botId = ?");
@@ -58,5 +53,13 @@ public class Database {
             stmt.setObject(1, UUID.fromString(botId));
             return stmt.executeUpdate() == 1;
         }
+    }
+
+    private Connection newConnection() throws SQLException {
+        String driver = conf.driver != null ? conf.driver : "postgresql";
+        String url = conf.url != null
+                ? conf.url
+                : String.format("jdbc:%s://%s:%d/%s", driver, conf.host, conf.port, conf.database);
+        return DriverManager.getConnection(url, conf.user, conf.password);
     }
 }

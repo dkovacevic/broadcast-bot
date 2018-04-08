@@ -12,13 +12,18 @@ batch: 50
 threads: 8
 host: 'http://localhost:8081'
 
-db:
+postgres:
   host: localhost
   port: 5432
   database: postgres
+  driver: postgresql
   user: postgres
   password: password
-  
+
+db:
+    host: localhost
+    port: 6379
+
 channels:
 
   official:

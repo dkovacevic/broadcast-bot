@@ -27,14 +27,16 @@ public class BatchForwardResource {
 
     @PUT
     public Response forward(BatchForward batch) throws Exception {
-        Database database = new Database(Service.CONFIG.db);
+        Database database = new Database(Service.CONFIG.getPostgres());
 
         int success = 0;
         for (String botId : batch.bots) {
             try {
                 WireClient wireClient = repo.getWireClient(botId);
                 if (wireClient == null) {
-                    database.unsubscribe(botId);
+                    boolean unsubscribed = database.unsubscribe(botId);
+                    Logger.warning("Unsubscribed: %s, %s", botId, unsubscribed);
+                    repo.purgeBot(botId);
                     continue;
                 }
 
@@ -46,6 +48,7 @@ public class BatchForwardResource {
                 }
             } catch (MissingStateException e) {
                 database.unsubscribe(botId);
+                repo.purgeBot(botId);
             } catch (Exception e) {
                 Logger.warning("BatchForwardResource.forward: Bot: %s. %s", botId, e);
             }

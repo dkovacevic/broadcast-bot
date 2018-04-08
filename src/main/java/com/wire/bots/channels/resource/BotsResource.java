@@ -80,7 +80,7 @@ public class BotsResource {
                     build();
         }
 
-        Database database = new Database(Service.CONFIG.db);
+        Database database = new Database(Service.CONFIG.getPostgres());
         if (!database.insertSubscriber(botId, name)) {
             Logger.error("Failed to save the channel id into storage. Bot: %s, Channel: %s", botId, name);
             return Response.

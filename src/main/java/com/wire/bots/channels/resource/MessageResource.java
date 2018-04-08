@@ -30,8 +30,6 @@ public class MessageResource extends MessageResourceBase {
                                @PathParam("bot") String bot,
                                InboundMessage inbound) throws Exception {
 
-        Logger.info("Message for channel: %s, msg: %s", channelName, inbound.data.id);
-
         Channel channel = conf.getChannels().get(channelName);
         if (channel == null) {
             Logger.warning("Unknown channel: %s.", channelName);
@@ -59,7 +57,7 @@ public class MessageResource extends MessageResourceBase {
         try {
             handleMessage(inbound, wireClient);
         } catch (Exception e) {
-            Logger.error("newMessage: Bot: %s, type: %s, %s, error: %s", bot, inbound.type, inbound.data.id, e);
+            Logger.error("newMessage: Bot: %s, type: %s, error: %s", bot, inbound.type, e);
         }
 
         return Response.
