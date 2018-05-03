@@ -1,4 +1,6 @@
- ## How does it work?
+![https://travis-ci.org/dkovacevic/channel-bot.svg?branch=develop](https://travis-ci.org/dkovacevic/channel-bot.svg?branch=develop)
+
+## How does it work?
 This bot channels messages posted to it in Admin conversation to all conversations that it is in.
 Channel is accessible via *invite link* 
 There is no limitation as in number of subscribers or number of messages. 

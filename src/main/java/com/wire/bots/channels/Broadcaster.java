@@ -43,7 +43,7 @@ class Broadcaster {
 
     Broadcaster(ClientRepo repo) {
         this.repo = repo;
-        warmup();
+        //warmup();
     }
 
     private void broadcastLocally(Channel channel, final TextMessage msg) throws Exception {
