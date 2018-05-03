@@ -37,7 +37,7 @@ import javax.ws.rs.core.Response;
 
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Path("/channels/{name}/bots")
+@Path("/{name}/bots")
 public class BotsResource {
     private final NewBotHandler handler;
     private final StorageFactory storageF;
@@ -51,19 +51,19 @@ public class BotsResource {
 
     @POST
     public Response newBot(@HeaderParam("Authorization") String auth,
-                           @PathParam("name") String name,
+                           @PathParam("name") String channelId,
                            NewBot newBot) throws Exception {
 
-        Channel channel = handler.getChannel(name);
+        Channel channel = handler.getChannel(channelId);
         if (channel == null) {
-            Logger.warning("Unknown Channel: %s.", name);
+            Logger.warning("Unknown Channel: %s.", channelId);
             return Response.
                     status(404).
                     build();
         }
 
         if (!Util.compareTokens(auth, channel.token)) {
-            Logger.warning("Invalid Authorization for Channel: %s.", name);
+            Logger.warning("Invalid Authorization for Channel: %s.", channelId);
             return Response.
                     ok("Invalid Authorization: " + auth).
                     status(403).
@@ -74,21 +74,21 @@ public class BotsResource {
         State storage = storageF.create(botId);
 
         if (!storage.saveState(newBot)) {
-            Logger.error("Failed to save the state. Bot: %s, Channel: %s", botId, name);
+            Logger.error("Failed to save the state. Bot: %s, Channel: %s", botId, channel.id);
             return Response.
                     status(409).
                     build();
         }
 
         Database database = new Database(Service.CONFIG.getPostgres());
-        if (!database.insertSubscriber(botId, name)) {
-            Logger.error("Failed to save the channel id into storage. Bot: %s, Channel: %s", botId, name);
+        if (!database.insertSubscriber(botId, channel.id)) {
+            Logger.error("Failed to save the channel id into storage. Bot: %s, Channel: %s", botId, channel.id);
             return Response.
                     status(409).
                     build();
         }
 
-        if (!handler.onNewBot(name, newBot)) {
+        if (!handler.onNewBot(channel.id, newBot)) {
             return Response.
                     status(409).
                     build();

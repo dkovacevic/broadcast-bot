@@ -70,8 +70,7 @@ public class BotsResourceTest {
     @Test
     public void testStorage() throws Exception {
         WebTarget path = resources
-                .target("channels")
-                .path(CHANNEL_NAME)
+                .target(CHANNEL_NAME)
                 .path("bots");
 
         NewBot newBot = new NewBot();

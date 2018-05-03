@@ -64,6 +64,12 @@ public class Service extends Server<Config> {
         CONFIG = config;
         Logger.info("Channel Service Host: %s", config.host);
         Logger.info("DB Host: %s", config.db.host);
+        env.jersey().setUrlPattern("/channels/*");
+
+        //Logger.info("Starting Storage migration...");
+        //Migration migration = new Migration(getStorageFactory(config));
+        //migration.migrateSubscribers();
+        //Logger.info("Finished Storage migration");
     }
 
     @Override

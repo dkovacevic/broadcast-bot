@@ -111,7 +111,7 @@ class Broadcaster {
         if (msg.getText().startsWith("http")) {
             broadcastUrl(channel, msg);
         } else {
-            broadcastForward(channel, msg);
+            broadcastLocally(channel, msg);
         }
     }
 

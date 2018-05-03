@@ -15,7 +15,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 @Consumes(MediaType.APPLICATION_JSON)
-@Path("/channels/{name}/bots/{bot}/messages")
+@Path("/{name}/bots/{bot}/messages")
 public class MessageResource extends MessageResourceBase {
     private final Config conf;
 

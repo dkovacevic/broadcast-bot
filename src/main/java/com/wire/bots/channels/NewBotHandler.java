@@ -14,9 +14,13 @@ public class NewBotHandler {
         this.broadcaster = broadcaster;
     }
 
-    public boolean onNewBot(String channelName, NewBot newBot) {
+    public boolean onNewBot(String channelId, NewBot newBot) {
         try {
-            Channel channel = config.getChannels().get(channelName);
+            Channel channel = config.getChannels().get(channelId);
+            if (channel == null) {
+                Logger.error("Unknown Channel `%s`, bot: %s", channelId, newBot.id);
+                return false;
+            }
 
             if (checkWhitelist(newBot.origin.handle, channel.whitelist))
                 return false;
@@ -31,11 +35,11 @@ public class NewBotHandler {
             }
 
             if (channel.admin == null) {
-                Logger.warning("Channel `%s` not yet activated. Admin: %s", channel.name, newBot.id);
+                Logger.warning("Channel `%s` not yet activated. Admin: %s", channel.id, newBot.id);
                 return true;
             }
 
-            Logger.info("New Subscriber for Channel: %s. Bot: %s", channel.name, newBot.id);
+            Logger.info("New Subscriber for Channel: %s. Bot: %s", channel.id, newBot.id);
             if (broadcaster != null) {
                 broadcaster.sendToAdminConv(channel.admin, String.format("**@%s** has joined", newBot.origin.handle));
             }

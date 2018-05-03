@@ -35,10 +35,10 @@ channels:
     introPic: null
     whitelist: null
 
-  wire_news:
-    id: "wire_news"
+  news:
+    id: "news"
     name: "Wire News"
-    token: "official_token"
+    token: null
     admin: null
     introText: null
     introPic: null

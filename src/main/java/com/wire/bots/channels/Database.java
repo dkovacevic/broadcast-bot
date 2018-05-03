@@ -13,20 +13,20 @@ public class Database {
         this.conf = postgres;
     }
 
-    public boolean insertSubscriber(String botId, String channelName) throws Exception {
+    public boolean insertSubscriber(String botId, String channelId) throws Exception {
         try (Connection c = newConnection()) {
             PreparedStatement stmt = c.prepareStatement("INSERT INTO Channels (botId, channel) VALUES (?, ?) ON CONFLICT (botId) DO NOTHING");
             stmt.setObject(1, UUID.fromString(botId));
-            stmt.setString(2, channelName);
+            stmt.setString(2, channelId);
             return stmt.executeUpdate() == 1;
         }
     }
 
-    ArrayList<String> getSubscribers(String channelName) throws Exception {
+    ArrayList<String> getSubscribers(String channelId) throws Exception {
         ArrayList<String> ret = new ArrayList<>();
         try (Connection c = newConnection()) {
             PreparedStatement stmt = c.prepareStatement("SELECT botId FROM Channels WHERE channel = ?");
-            stmt.setString(1, channelName);
+            stmt.setString(1, channelId);
             ResultSet resultSet = stmt.executeQuery();
             while (resultSet.next()) {
                 ret.add(resultSet.getString("botId"));
@@ -56,10 +56,7 @@ public class Database {
     }
 
     private Connection newConnection() throws SQLException {
-        String driver = conf.driver != null ? conf.driver : "postgresql";
-        String url = conf.url != null
-                ? conf.url
-                : String.format("jdbc:%s://%s:%d/%s", driver, conf.host, conf.port, conf.database);
+        String url = String.format("jdbc:postgresql://%s:%d/%s", conf.host, conf.port, conf.database);
         return DriverManager.getConnection(url, conf.user, conf.password);
     }
 }
