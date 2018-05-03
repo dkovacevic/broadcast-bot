@@ -1,4 +1,4 @@
-![https://travis-ci.org/dkovacevic/channel-bot.svg?branch=develop](https://travis-ci.org/dkovacevic/channel-bot.svg?branch=develop)
+![https://travis-ci.org/dkovacevic/channel-bot.svg?branch=develop](https://travis-ci.org/dkovacevic/channel-bot)
 
 ## How does it work?
 This bot channels messages posted to it in Admin conversation to all conversations that it is in.
