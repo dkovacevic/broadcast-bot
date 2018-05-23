@@ -41,7 +41,7 @@ public class NewBotHandler {
 
             Logger.info("New Subscriber for Channel: %s. Bot: %s", channel.id, newBot.id);
             if (broadcaster != null) {
-                broadcaster.sendToAdminConv(channel.admin, String.format("**@%s** has joined", newBot.origin.handle));
+                //broadcaster.sendToAdminConv(channel.admin, String.format("**@%s** has joined", newBot.origin.handle));
             }
         } catch (Exception e) {
             Logger.error(e.getMessage());
