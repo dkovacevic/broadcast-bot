@@ -8,11 +8,11 @@ import com.wire.bots.sdk.tools.Logger;
 import javax.annotation.Nullable;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class Cache {
+class Cache {
     private static final ConcurrentHashMap<String, Picture> pictures = new ConcurrentHashMap<>();//<Url, Picture>
 
     @Nullable
-    public static Picture getPicture(WireClient client, String url) throws Exception {
+    static Picture getPicture(WireClient client, String url) {
 
         return pictures.computeIfAbsent(url, k -> {
             try {
@@ -27,10 +27,10 @@ public class Cache {
     private static Picture upload(WireClient client, String imgUrl) throws Exception {
         Picture preview = new Picture(imgUrl);
         preview.setPublic(true);
+        preview.setRetention("eternal");
 
         AssetKey assetKey = client.uploadAsset(preview);
         preview.setAssetKey(assetKey.key);
         return preview;
     }
-
 }
