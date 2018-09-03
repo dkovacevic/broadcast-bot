@@ -1,4 +1,14 @@
-CREATE TABLE Channels (
- botId  UUID NOT NULL PRIMARY KEY,
+CREATE TABLE Subscribers (
+ botId UUID NOT NULL PRIMARY KEY,
  channel varchar NOT NULL
+);
+
+CREATE TABLE Channels (
+ id varchar NOT NULL PRIMARY KEY,
+ name varchar NOT NULL,
+ token varchar NOT NULL,
+ admin UUID,
+ introText varchar,
+ introPicture varchar,
+ whitelist varchar
 );

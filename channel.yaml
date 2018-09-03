@@ -23,23 +23,3 @@ postgres:
 db:
     host: localhost
     port: 6379
-
-channels:
-
-  official:
-    id: "official"
-    name: "Wire Official"
-    token: null
-    admin: null
-    introText: null
-    introPic: null
-    whitelist: null
-
-  news:
-    id: "news"
-    name: "Wire News"
-    token: null
-    admin: null
-    introText: null
-    introPic: null
-    whitelist: null

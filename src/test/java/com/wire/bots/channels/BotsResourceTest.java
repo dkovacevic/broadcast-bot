@@ -52,8 +52,6 @@ public class BotsResourceTest {
         channel.token = TOKEN;
         channel.admin = admin;
 
-        Service.CONFIG.channels.put(CHANNEL_NAME, channel);
-
         handler = new NewBotHandler(Service.CONFIG, null);
 
         cryptoFactory = (botId) -> new CryptoDatabase(botId, new RedisStorage(

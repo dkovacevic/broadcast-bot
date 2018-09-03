@@ -19,22 +19,14 @@
 package com.wire.bots.channels;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.wire.bots.channels.model.Channel;
 import com.wire.bots.sdk.Configuration;
-
-import java.util.HashMap;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Config extends Configuration {
-    public HashMap<String, Channel> channels = new HashMap<>();
     public String host;
     public int batch = 100;
     public int threads = 8;
     public DB postgres = new DB();
-
-    public HashMap<String, Channel> getChannels() {
-        return channels;
-    }
 
     public String getHost() {
         return host;

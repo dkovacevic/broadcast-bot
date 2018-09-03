@@ -16,7 +16,9 @@ public class NewBotHandler {
 
     public boolean onNewBot(String channelId, NewBot newBot) {
         try {
-            Channel channel = config.getChannels().get(channelId);
+            Database database = new Database(config.getPostgres());
+            Channel channel = database.getChannel(channelId);
+
             if (channel == null) {
                 Logger.error("Unknown Channel `%s`, bot: %s", channelId, newBot.id);
                 return false;
@@ -66,9 +68,5 @@ public class NewBotHandler {
             }
         }
         return false;
-    }
-
-    public Channel getChannel(String name) {
-        return config.getChannels().get(name);
     }
 }

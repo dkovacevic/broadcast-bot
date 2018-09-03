@@ -1,5 +1,6 @@
 package com.wire.bots.channels;
 
+import com.wire.bots.channels.model.Channel;
 import com.wire.bots.sdk.Configuration;
 import org.junit.Test;
 
@@ -28,9 +29,9 @@ public class DatabaseTest {
         ArrayList<String> subscribers = db.getSubscribers(channel);
         assert subscribers.contains(botId);
 
-        String dbChannel = db.getChannel(botId);
+        Channel dbChannel = db.getSubscribedChannel(botId);
         assert dbChannel != null;
-        assert dbChannel.equalsIgnoreCase(channel);
+        assert dbChannel.id.equalsIgnoreCase(channel);
 
         boolean unsubscribe = db.unsubscribe(botId);
         assert unsubscribe;

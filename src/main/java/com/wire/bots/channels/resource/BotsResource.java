@@ -54,7 +54,8 @@ public class BotsResource {
                            @PathParam("name") String channelId,
                            NewBot newBot) throws Exception {
 
-        Channel channel = handler.getChannel(channelId);
+        Database database = new Database(Service.CONFIG.getPostgres());
+        Channel channel = database.getChannel(channelId);
         if (channel == null) {
             Logger.warning("Unknown Channel: %s.", channelId);
             return Response.
@@ -80,7 +81,6 @@ public class BotsResource {
                     build();
         }
 
-        Database database = new Database(Service.CONFIG.getPostgres());
         if (!database.insertSubscriber(botId, channel.id)) {
             Logger.error("Failed to save the channel id into storage. Bot: %s, Channel: %s", botId, channel.id);
             return Response.

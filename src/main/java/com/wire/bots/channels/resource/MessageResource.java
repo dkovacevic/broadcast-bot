@@ -1,6 +1,7 @@
 package com.wire.bots.channels.resource;
 
 import com.wire.bots.channels.Config;
+import com.wire.bots.channels.Database;
 import com.wire.bots.channels.model.Channel;
 import com.wire.bots.sdk.ClientRepo;
 import com.wire.bots.sdk.MessageHandlerBase;
@@ -26,20 +27,21 @@ public class MessageResource extends MessageResourceBase {
 
     @POST
     public Response newMessage(@HeaderParam("Authorization") String auth,
-                               @PathParam("name") String channelName,
+                               @PathParam("name") String channelId,
                                @PathParam("bot") String bot,
                                InboundMessage inbound) throws Exception {
 
-        Channel channel = conf.getChannels().get(channelName);
+        Database database = new Database(conf.getPostgres());
+        Channel channel = database.getChannel(channelId);
         if (channel == null) {
-            Logger.warning("Unknown channel: %s.", channelName);
+            Logger.warning("Unknown channel: %s.", channelId);
             return Response.
                     status(404).
                     build();
         }
 
         if (!Util.compareTokens(auth, channel.token)) {
-            Logger.warning("Invalid Authorization for the channel: %s.", channelName);
+            Logger.warning("Invalid Authorization for the channel: %s.", channelId);
             return Response.
                     ok("Invalid Authorization: " + auth).
                     status(403).

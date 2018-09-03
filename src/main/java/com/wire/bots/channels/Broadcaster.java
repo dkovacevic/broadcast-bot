@@ -115,25 +115,6 @@ class Broadcaster {
         }
     }
 
-    private void warmup() {
-        for (Channel channel : Service.CONFIG.channels.values()) {
-            try {
-                ArrayList<WireClient> wireClients = getSubscribers(channel);
-                for (final WireClient client : wireClients) {
-                    executor.execute(() -> {
-                        try {
-                            client.sendReaction("", "");
-                        } catch (Exception e) {
-                            Logger.error("warmup: bot: %s, %s", client.getId(), e);
-                        }
-                    });
-                }
-            } catch (Exception e) {
-                Logger.warning("warmup %s", e);
-            }
-        }
-    }
-
     void broadcast(Channel channel, ImageMessage msg) throws Exception {
         final Picture picture = new Picture(msg.getData(), msg.getMimeType());
         picture.setSize((int) msg.getSize());

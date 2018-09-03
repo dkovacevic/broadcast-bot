@@ -222,8 +222,7 @@ public class MessageHandler extends MessageHandlerBase {
 
     private Channel getChannel(String botId) throws Exception {
         Database database = new Database(Service.CONFIG.getPostgres());
-        String channelName = database.getChannel(botId);
-        return Service.CONFIG.getChannels().get(channelName);
+        return database.getSubscribedChannel(botId);
     }
 
     private String getUserName(WireClient client, String userId) throws IOException {
